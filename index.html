@@ -42,9 +42,9 @@
   <h1>🐶 Pet The Dog</h1>
   <img id="dog-img" src="https://placedog.net/400/300?id=1" alt="Cute Dog" />
   <br>
-  <button onclick="connect()">🔌 Connect Wallet</button>
+  <button id="connectBtn" onclick="connect()">🔌 Connect Wallet</button>
   <br>
-  <button onclick="petDog()">🐾 Pet the Dog</button>
+  <button id="petBtn" onclick="petDog()">🐾 Pet the Dog</button>
 
   <div class="info" id="yourPets">Your Pets: -</div>
   <div class="info" id="totalPets">Total Pets: -</div>
@@ -68,11 +68,17 @@
       userAddress = await signer.getAddress();
       contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
       updateCounts();
-      alert("Wallet connected!");
+
+      const connectBtn = document.getElementById("connectBtn");
+      connectBtn.innerText = `🟢 ${userAddress.slice(0, 6)}...${userAddress.slice(-4)}`;
+      connectBtn.disabled = true;
     }
 
     async function petDog() {
       if (!contract) return alert("Please connect your wallet first.");
+      const petBtn = document.getElementById("petBtn");
+      petBtn.innerText = "💤 Petting...";
+      petBtn.disabled = true;
       try {
         const tx = await contract.pet();
         await tx.wait();
@@ -82,6 +88,9 @@
       } catch (e) {
         console.error(e);
         alert("Tx failed!");
+      } finally {
+        petBtn.innerText = "🐾 Pet the Dog";
+        petBtn.disabled = false;
       }
     }
 
