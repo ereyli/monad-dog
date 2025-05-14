@@ -36,6 +36,41 @@
         console.error("Error loading gm/gn", err);
       }
     }
+      async function updatePetLeaderboard() {
+      const list = document.getElementById('pet-leaderboard');
+      if (!list || !provider || !userAddress) return;
+      list.innerHTML = '';
+      const contract = new ethers.Contract("0xc53abe4c593b9440407f8ac1b346f3f999e6d8ed", [
+        "function getMyPets(address) public view returns (uint256)"
+      ], provider);
+      try {
+        const count = await contract.getMyPets(userAddress);
+        const li = document.createElement('li');
+        li.textContent = `${userAddress.slice(0, 6)}...${userAddress.slice(-4)} — ${count.toString()} pets`;
+        list.appendChild(li);
+      } catch (err) {
+        console.error("Error loading pets", err);
+      }
+    }
+
+    async function updateGmGnLeaderboard() {
+      const list = document.getElementById('gmgn-leaderboard');
+      if (!list || !provider || !userAddress) return;
+      list.innerHTML = '';
+      const contract = new ethers.Contract(GREET_CONTRACT_ADDRESS, [
+        "function getGmCount(address) public view returns (uint256)",
+        "function getGnCount(address) public view returns (uint256)"
+      ], provider);
+      try {
+        const gm = await contract.getGmCount(userAddress);
+        const gn = await contract.getGnCount(userAddress);
+        const li = document.createElement('li');
+        li.textContent = `${userAddress.slice(0, 6)}...${userAddress.slice(-4)} — ${gm} GM / ${gn} GN`;
+        list.appendChild(li);
+      } catch (err) {
+        console.error("Error loading gm/gn", err);
+      }
+    }
   </script>
   <style>
     body {
