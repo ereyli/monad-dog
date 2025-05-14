@@ -3,7 +3,48 @@
 <head>
   <meta charset="UTF-8">
   <title>Monad Fun Page</title>
-  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js">
+    async function updatePetLeaderboard() {
+      const list = document.getElementById('pet-leaderboard');
+      if (!list || !provider || !userAddress) return;
+      list.innerHTML = '';
+      const addresses = [userAddress];
+      const contract = new ethers.Contract("0xc53abe4c593b9440407f8ac1b346f3f999e6d8ed", ["function getMyPets(address) public view returns (uint256)"], provider);
+      for (let addr of addresses) {
+        try {
+          const count = await contract.getMyPets(addr);
+          const li = document.createElement('li');
+          li.textContent = `${addr.slice(0,6)}...${addr.slice(-4)} — ${count.toString()} pets`;
+          list.appendChild(li);
+        } catch (err) {
+          console.error("Error loading pets for", addr, err);
+        }
+      }
+        } catch (err) {
+          console.error("Error loading pets for", addr, err);
+        }
+      }
+    }
+
+    async function updateGmGnLeaderboard() {
+      const list = document.getElementById('gmgn-leaderboard');
+      if (!list || !provider || !userAddress) return;
+      list.innerHTML = '';
+      const contract = new ethers.Contract("0xbc8b78f3e2348d4b5e0390fe700ce54b59931da4", [
+        "function getGmCount(address) public view returns (uint256)",
+        "function getGnCount(address) public view returns (uint256)"
+      ], provider);
+      try {
+        const gm = await contract.getGmCount(userAddress);
+        const gn = await contract.getGnCount(userAddress);
+        const li = document.createElement('li');
+        li.textContent = `${userAddress.slice(0,6)}...${userAddress.slice(-4)} — ${gm} GM / ${gn} GN`;
+        list.appendChild(li);
+      } catch (err) {
+        console.error("Error loading gm/gn for", userAddress, err);
+      }
+    }
+  </script>
   <style>
     body {
       font-family: sans-serif;
@@ -71,7 +112,7 @@
     }
     .xp-box {
       position: absolute;
-      top: 10px;
+      top: 2px;
       left: 10px;
       background: linear-gradient(135deg, #a259ff, #8338ec);
       color: white;
@@ -81,16 +122,14 @@
       font-weight: bold;
       box-shadow: 0 0 10px #a259ff;
     }
-    .connect-box {
-      position: absolute;
-      top: 10px;
+    $1top: 0px;
       right: 10px;
     }
   </style>
 </head>
 <body>
   <div class="xp-box">✨ XP: <span id="xpCounter">0</span></div>
-  <div class="connect-box">
+  <div class="connect-box" style="position: fixed; top: -4px; right: 10px; z-index: 10;">
     <button id="connectBtn" onclick="connect()">🔌 Connect Wallet</button>
   </div>
 
@@ -106,10 +145,8 @@
     <button onclick="petDog()">Pet 🐕</button>
     <div class="leaderboard">
       <h2>🏆 Pet Leaderboard</h2>
-      <ol>
-        <li>0xa1b2...789c — 14 pets</li>
-        <li>0xc3d4...567e — 10 pets</li>
-        <li>0xf6e7...123a — 6 pets</li>
+      <ol id="pet-leaderboard">
+        <li>Loading...</li>
       </ol>
     </div>
   </div>
@@ -120,10 +157,8 @@
     <button onclick="sayGN()">🌙 GN</button>
     <div class="leaderboard">
       <h2>🏆 GM/GN Leaderboard</h2>
-      <ol>
-        <li>0xa1b2...789c — 10 GM / 8 GN</li>
-        <li>0xc3d4...567e — 9 GM / 7 GN</li>
-        <li>0xf6e7...123a — 5 GM / 6 GN</li>
+      <ol id="gmgn-leaderboard">
+        <li>Loading...</li>
       </ol>
     </div>
   </div>
@@ -169,6 +204,8 @@
       flipContract = new ethers.Contract(FLIP_CONTRACT_ADDRESS, FLIP_ABI, signer);
       document.getElementById("connectBtn").innerText = `🟢 ${userAddress.slice(0, 6)}...${userAddress.slice(-4)}`;
       updateFlipLeaderboard();
+      updatePetLeaderboard();
+      updateGmGnLeaderboard();
     }
 
     function addXP(amount) {
@@ -185,8 +222,21 @@
     }
 
     async function petDog() {
-      addXP(10);
-      alert("You pet the dog!");
+      if (!signer) return alert("Connect wallet first");
+      const petContract = new ethers.Contract("0xc53abe4c593b9440407f8ac1b346f3f999e6d8ed", [
+        "function pet() public",
+        "function getMyPets(address) public view returns (uint256)"
+      ], signer);
+      try {
+        const tx = await petContract.pet();
+        await tx.wait();
+        addXP(10);
+        alert("You pet the dog!");
+        updatePetLeaderboard();
+      } catch (e) {
+        console.error(e);
+        alert("Pet tx failed");
+      }
     }
 
     async function sayGM() {
