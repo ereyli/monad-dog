@@ -96,6 +96,9 @@
   </style>
 </head>
 <body>
+  <div style="position: absolute; top: 10px; right: 10px;">
+    <button id="connectBtn" onclick="connect()">🔌 Connect Wallet</button>
+  </div>
   <div class="tabs">
     <div class="tab active" onclick="showTab('pet-tab')">🐶 Pet The Dog</div>
     <div class="tab" onclick="showTab('gmgn-tab')">🌅 GM / GN</div>
@@ -106,8 +109,7 @@
     <img id="dog-img" src="https://placedog.net/400/300?id=1" alt="Cute Dog" onclick="petDog()" />
     <audio id="bark-sound" src="https://cdn.pixabay.com/download/audio/2022/03/23/audio_44fa40781c.mp3?filename=dog-bark-1-6275.mp3"></audio>
     <div id="emoji-area"></div>
-    <br>
-    <button id="connectBtn" onclick="connect()">🔌 Connect Wallet</button>
+    
     <div class="info" id="yourPets">Your Pets: -</div>
     <div class="info" id="totalPets">Total Pets: -</div>
     <div class="leaderboard">
@@ -125,7 +127,15 @@
     <button onclick="sayGM()">☀️ GM</button>
     <button onclick="sayGN()">🌙 GN</button>
     <div class="info" id="gmStatus">GM count: -</div>
-    <div class="info" id="gnStatus">GN count: -</div>
+    $1
+    <div class="leaderboard">
+      <h2>🏆 GM/GN Leaderboard</h2>
+      <ol>
+        <li>0xaaa...1234 — 15 GM / 12 GN</li>
+        <li>0xbbb...5678 — 10 GM / 8 GN</li>
+        <li>0xccc...abcd — 5 GM / 7 GN</li>
+      </ol>
+    </div>
   </div>
 
   <script>
