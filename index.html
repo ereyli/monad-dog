@@ -2,15 +2,37 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Pet The Dog 🐶</title>
+  <title>Monad Fun Page</title>
   <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
   <style>
     body {
       font-family: sans-serif;
-      text-align: center;
-      padding-top: 50px;
       background: #1e003e;
       color: #ffffff;
+      margin: 0;
+    }
+    .tabs {
+      display: flex;
+      justify-content: center;
+      background: #2c0069;
+    }
+    .tab {
+      padding: 14px 24px;
+      cursor: pointer;
+      font-weight: bold;
+      background: #2c0069;
+      border-bottom: 4px solid transparent;
+    }
+    .tab.active {
+      border-bottom: 4px solid #a259ff;
+    }
+    .tab-content {
+      display: none;
+      padding: 20px;
+      text-align: center;
+    }
+    .tab-content.active {
+      display: block;
     }
     #dog-img {
       width: 240px;
@@ -74,24 +96,36 @@
   </style>
 </head>
 <body>
+  <div class="tabs">
+    <div class="tab active" onclick="showTab('pet-tab')">🐶 Pet The Dog</div>
+    <div class="tab" onclick="showTab('gmgn-tab')">🌅 GM / GN</div>
+  </div>
 
-  <h1>🐶 Pet The Dog</h1>
-  <img id="dog-img" src="https://placedog.net/400/300?id=1" alt="Cute Dog" onclick="petDog()" />
-  <audio id="bark-sound" src="https://cdn.pixabay.com/download/audio/2022/03/23/audio_44fa40781c.mp3?filename=dog-bark-1-6275.mp3"></audio>
-  <div id="emoji-area"></div>
-  <br>
-  <button id="connectBtn" onclick="connect()">🔌 Connect Wallet</button>
+  <div id="pet-tab" class="tab-content active">
+    <h1>🐶 Pet The Dog</h1>
+    <img id="dog-img" src="https://placedog.net/400/300?id=1" alt="Cute Dog" onclick="petDog()" />
+    <audio id="bark-sound" src="https://cdn.pixabay.com/download/audio/2022/03/23/audio_44fa40781c.mp3?filename=dog-bark-1-6275.mp3"></audio>
+    <div id="emoji-area"></div>
+    <br>
+    <button id="connectBtn" onclick="connect()">🔌 Connect Wallet</button>
+    <div class="info" id="yourPets">Your Pets: -</div>
+    <div class="info" id="totalPets">Total Pets: -</div>
+    <div class="leaderboard">
+      <h2>🏆 Leaderboard</h2>
+      <ol id="leaderboard-list">
+        <li>0x123...abcd — 12 pets</li>
+        <li>0x456...beef — 8 pets</li>
+        <li>0x789...cafe — 5 pets</li>
+      </ol>
+    </div>
+  </div>
 
-  <div class="info" id="yourPets">Your Pets: -</div>
-  <div class="info" id="totalPets">Total Pets: -</div>
-
-  <div class="leaderboard">
-    <h2>🏆 Leaderboard</h2>
-    <ol id="leaderboard-list">
-      <li>0x123...abcd — 12 pets</li>
-      <li>0x456...beef — 8 pets</li>
-      <li>0x789...cafe — 5 pets</li>
-    </ol>
+  <div id="gmgn-tab" class="tab-content">
+    <h1>🌅 Say GM or GN</h1>
+    <button onclick="sayGM()">☀️ GM</button>
+    <button onclick="sayGN()">🌙 GN</button>
+    <div class="info" id="gmStatus">GM count: -</div>
+    <div class="info" id="gnStatus">GN count: -</div>
   </div>
 
   <script>
@@ -101,69 +135,100 @@
       "function getMyPets(address user) public view returns (uint256)",
       "function totalPets() public view returns (uint256)"
     ];
+    const GREET_CONTRACT_ADDRESS = "0xbc8b78f3e2348d4b5e0390fe700ce54b59931da4";
+    const GREET_ABI = [
+      "function gm() public",
+      "function gn() public",
+      "function getGmCount(address user) public view returns (uint256)",
+      "function getGnCount(address user) public view returns (uint256)"
+    ];
 
     let provider, signer, contract, userAddress;
 
-    document.addEventListener('mousemove', (e) => {
-      const dog = document.getElementById('dog-img');
-      const rect = dog.getBoundingClientRect();
-      const dx = e.clientX - (rect.left + rect.width / 2);
-      const dy = e.clientY - (rect.top + rect.height / 2);
-      const angle = Math.atan2(dy, dx) * (180 / Math.PI);
-      dog.style.transform = `rotate(${angle / 10}deg)`;
-    });
-
     async function connect() {
-      if (!window.ethereum) return alert("Please install MetaMask");
       provider = new ethers.providers.Web3Provider(window.ethereum, "any");
       await provider.send("eth_requestAccounts", []);
       signer = provider.getSigner();
       userAddress = await signer.getAddress();
       contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
       updateCounts();
-
-      const connectBtn = document.getElementById("connectBtn");
-      connectBtn.innerText = `🟢 ${userAddress.slice(0, 6)}...${userAddress.slice(-4)}`;
-      connectBtn.disabled = true;
+      document.getElementById("connectBtn").innerText = `🟢 ${userAddress.slice(0,6)}...${userAddress.slice(-4)}`;
     }
 
     async function petDog() {
       if (!contract) return alert("Please connect your wallet first.");
-      const dogImg = document.getElementById("dog-img");
-      const sound = document.getElementById("bark-sound");
-      dogImg.classList.add("bounce");
-      sound.currentTime = 0;
-      sound.play();
-      setTimeout(() => dogImg.classList.remove("bounce"), 600);
+      const dog = document.getElementById("dog-img");
+      document.getElementById("bark-sound").play();
+      dog.classList.add("bounce");
+      setTimeout(() => dog.classList.remove("bounce"), 600);
       try {
         const tx = await contract.pet();
         await tx.wait();
         updateCounts();
         flashEmoji();
       } catch (e) {
+        alert("Tx failed");
         console.error(e);
-        alert("Tx failed!");
       }
     }
 
-    function flashEmoji() {
-      const emojiArea = document.getElementById("emoji-area");
-      const emojis = ["💖", "🐶", "🎉", "✨", "🥎", "💥"];
-      const span = document.createElement("span");
-      span.className = "emoji-flash";
-      span.textContent = emojis[Math.floor(Math.random() * emojis.length)];
-      emojiArea.innerHTML = "";
-      emojiArea.appendChild(span);
+    async function updateCounts() {
+      const yourPets = await contract.getMyPets(userAddress);
+      const totalPets = await contract.totalPets();
+      document.getElementById("yourPets").innerText = `Your Pets: ${yourPets}`;
+      document.getElementById("totalPets").innerText = `Total Pets: ${totalPets}`;
     }
 
-    async function updateCounts() {
-      if (!contract || !userAddress) return;
-      const yours = await contract.getMyPets(userAddress);
-      const total = await contract.totalPets();
-      document.getElementById("yourPets").innerText = `Your Pets: ${yours}`;
-      document.getElementById("totalPets").innerText = `Total Pets: ${total}`;
+    function flashEmoji() {
+      const area = document.getElementById("emoji-area");
+      const emojis = ["💖", "🐶", "🎉", "✨", "🥎", "💥"];
+      area.innerHTML = `<div class='emoji-flash'>${emojis[Math.floor(Math.random() * emojis.length)]}</div>`;
+    }
+
+    function showTab(id) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      event.target.classList.add('active');
+      document.getElementById(id).classList.add('active');
+    }
+
+    async function sayGM() {
+      const greetContract = new ethers.Contract(GREET_CONTRACT_ADDRESS, GREET_ABI, signer);
+      try {
+        const tx = await greetContract.gm();
+        await tx.wait();
+        updateGreetCounts(greetContract);
+        alert("☀️ You said GM!");
+      } catch (e) {
+        console.error(e);
+        alert("GM tx failed");
+      }
+    }
+
+    async function sayGN() {
+      const greetContract = new ethers.Contract(GREET_CONTRACT_ADDRESS, GREET_ABI, signer);
+      try {
+        const tx = await greetContract.gn();
+        await tx.wait();
+        updateGreetCounts(greetContract);
+        alert("🌙 You said GN!");
+      } catch (e) {
+        console.error(e);
+        alert("GN tx failed");
+      }
+    }
+
+    async function updateGreetCounts(contract) {
+      try {
+        const address = await contract.signer.getAddress();
+        const gm = await contract.getGmCount(address);
+        const gn = await contract.getGnCount(address);
+        document.getElementById("gmStatus").innerText = `GM count: ${gm}`;
+        document.getElementById("gnStatus").innerText = `GN count: ${gn}`;
+      } catch (e) {
+        console.warn("Could not fetch greet counts", e);
+      }
     }
   </script>
-
 </body>
 </html>
