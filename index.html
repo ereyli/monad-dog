@@ -5,17 +5,27 @@
   <title>Pet The Dog 🐶</title>
   <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
   <style>
-    body { 
-      font-family: sans-serif; 
-      text-align: center; 
-      padding-top: 50px; 
-      background: #fdf6ec; 
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      padding-top: 50px;
+      background: #1e003e;
+      color: #ffffff;
     }
-    #dog-img { 
-      width: 240px; 
-      border-radius: 12px; 
-      box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-      transition: all 0.3s ease;
+    #dog-img {
+      width: 240px;
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+      transition: transform 0.2s linear;
+      cursor: pointer;
+    }
+    .bounce {
+      animation: bounce 0.6s;
+    }
+    @keyframes bounce {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.2) rotate(-5deg); }
+      100% { transform: scale(1); }
     }
     button {
       font-size: 20px;
@@ -23,31 +33,66 @@
       margin-top: 20px;
       border: none;
       border-radius: 8px;
-      background-color: #ffcc00;
+      background-color: #a259ff;
+      color: white;
       cursor: pointer;
       transition: background 0.2s ease;
     }
     button:hover {
-      background-color: #ffaa00;
+      background-color: #c084ff;
     }
     .info {
-      margin-top: 30px; 
-      font-size: 18px; 
-      color: #333;
+      margin-top: 30px;
+      font-size: 18px;
+      color: #eee;
+    }
+    .emoji-flash {
+      font-size: 32px;
+      animation: flash 1s ease;
+    }
+    @keyframes flash {
+      0% { opacity: 0; transform: scale(0.5); }
+      50% { opacity: 1; transform: scale(1.3); }
+      100% { opacity: 0; transform: scale(0.5); }
+    }
+    .leaderboard {
+      margin-top: 50px;
+      background: rgba(255, 255, 255, 0.1);
+      padding: 20px;
+      border-radius: 12px;
+    }
+    .leaderboard h2 {
+      margin-bottom: 10px;
+    }
+    .leaderboard ol {
+      list-style: none;
+      padding: 0;
+    }
+    .leaderboard li {
+      margin: 6px 0;
     }
   </style>
 </head>
 <body>
 
   <h1>🐶 Pet The Dog</h1>
-  <img id="dog-img" src="https://placedog.net/400/300?id=1" alt="Cute Dog" />
+  <img id="dog-img" src="https://placedog.net/400/300?id=1" alt="Cute Dog" onclick="petDog()" />
+  <audio id="bark-sound" src="https://cdn.pixabay.com/download/audio/2022/03/23/audio_44fa40781c.mp3?filename=dog-bark-1-6275.mp3"></audio>
+  <div id="emoji-area"></div>
   <br>
   <button id="connectBtn" onclick="connect()">🔌 Connect Wallet</button>
-  <br>
-  <button id="petBtn" onclick="petDog()">🐾 Pet the Dog</button>
 
   <div class="info" id="yourPets">Your Pets: -</div>
   <div class="info" id="totalPets">Total Pets: -</div>
+
+  <div class="leaderboard">
+    <h2>🏆 Leaderboard</h2>
+    <ol id="leaderboard-list">
+      <li>0x123...abcd — 12 pets</li>
+      <li>0x456...beef — 8 pets</li>
+      <li>0x789...cafe — 5 pets</li>
+    </ol>
+  </div>
 
   <script>
     const CONTRACT_ADDRESS = "0xc53abe4c593b9440407f8ac1b346f3f999e6d8ed";
@@ -59,9 +104,17 @@
 
     let provider, signer, contract, userAddress;
 
+    document.addEventListener('mousemove', (e) => {
+      const dog = document.getElementById('dog-img');
+      const rect = dog.getBoundingClientRect();
+      const dx = e.clientX - (rect.left + rect.width / 2);
+      const dy = e.clientY - (rect.top + rect.height / 2);
+      const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+      dog.style.transform = `rotate(${angle / 10}deg)`;
+    });
+
     async function connect() {
       if (!window.ethereum) return alert("Please install MetaMask");
-
       provider = new ethers.providers.Web3Provider(window.ethereum, "any");
       await provider.send("eth_requestAccounts", []);
       signer = provider.getSigner();
@@ -76,28 +129,31 @@
 
     async function petDog() {
       if (!contract) return alert("Please connect your wallet first.");
-      const petBtn = document.getElementById("petBtn");
-      petBtn.innerText = "💤 Petting...";
-      petBtn.disabled = true;
+      const dogImg = document.getElementById("dog-img");
+      const sound = document.getElementById("bark-sound");
+      dogImg.classList.add("bounce");
+      sound.currentTime = 0;
+      sound.play();
+      setTimeout(() => dogImg.classList.remove("bounce"), 600);
       try {
         const tx = await contract.pet();
         await tx.wait();
-        alert("🐶 You petted the dog!");
         updateCounts();
-        animateDog();
+        flashEmoji();
       } catch (e) {
         console.error(e);
         alert("Tx failed!");
-      } finally {
-        petBtn.innerText = "🐾 Pet the Dog";
-        petBtn.disabled = false;
       }
     }
 
-    function animateDog() {
-      const dogImg = document.getElementById("dog-img");
-      const randomId = Math.floor(Math.random() * 10) + 1;
-      dogImg.src = `https://placedog.net/400/300?id=${randomId}`;
+    function flashEmoji() {
+      const emojiArea = document.getElementById("emoji-area");
+      const emojis = ["💖", "🐶", "🎉", "✨", "🥎", "💥"];
+      const span = document.createElement("span");
+      span.className = "emoji-flash";
+      span.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+      emojiArea.innerHTML = "";
+      emojiArea.appendChild(span);
     }
 
     async function updateCounts() {
