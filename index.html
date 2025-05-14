@@ -34,21 +34,6 @@
     .tab-content.active {
       display: block;
     }
-    #dog-img {
-      width: 240px;
-      border-radius: 12px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.4);
-      transition: transform 0.2s linear;
-      cursor: pointer;
-    }
-    .bounce {
-      animation: bounce 0.6s;
-    }
-    @keyframes bounce {
-      0% { transform: scale(1); }
-      50% { transform: scale(1.2) rotate(-5deg); }
-      100% { transform: scale(1); }
-    }
     button {
       font-size: 20px;
       padding: 12px 24px;
@@ -68,15 +53,6 @@
       font-size: 18px;
       color: #eee;
     }
-    .emoji-flash {
-      font-size: 32px;
-      animation: flash 1s ease;
-    }
-    @keyframes flash {
-      0% { opacity: 0; transform: scale(0.5); }
-      50% { opacity: 1; transform: scale(1.3); }
-      100% { opacity: 0; transform: scale(0.5); }
-    }
     .leaderboard {
       margin-top: 50px;
       background: rgba(255, 255, 255, 0.1);
@@ -93,150 +69,187 @@
     .leaderboard li {
       margin: 6px 0;
     }
+    .xp-box {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: linear-gradient(135deg, #a259ff, #8338ec);
+      color: white;
+      padding: 10px 16px;
+      border-radius: 14px;
+      font-size: 18px;
+      font-weight: bold;
+      box-shadow: 0 0 10px #a259ff;
+    }
+    .connect-box {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+    }
   </style>
 </head>
 <body>
-  <div style="position: absolute; top: 10px; right: 10px;">
+  <div class="xp-box">✨ XP: <span id="xpCounter">0</span></div>
+  <div class="connect-box">
     <button id="connectBtn" onclick="connect()">🔌 Connect Wallet</button>
   </div>
+
   <div class="tabs">
-    <div class="tab active" onclick="showTab('pet-tab')">🐶 Pet The Dog</div>
-    <div class="tab" onclick="showTab('gmgn-tab')">🌅 GM / GN</div>
+    <div class="tab active" onclick="showTab(event, 'pet-tab')">🐶 Pet The Dog</div>
+    <div class="tab" onclick="showTab(event, 'gmgn-tab')">🌅 GM / GN</div>
+    <div class="tab" onclick="showTab(event, 'flip-tab')">🪙 Flip Coin</div>
   </div>
 
   <div id="pet-tab" class="tab-content active">
     <h1>🐶 Pet The Dog</h1>
-    <img id="dog-img" src="https://placedog.net/400/300?id=1" alt="Cute Dog" onclick="petDog()" />
-    <audio id="bark-sound" src="https://cdn.pixabay.com/download/audio/2022/03/23/audio_44fa40781c.mp3?filename=dog-bark-1-6275.mp3"></audio>
-    <div id="emoji-area"></div>
-    
-    <div class="info" id="yourPets">Your Pets: -</div>
-    <div class="info" id="totalPets">Total Pets: -</div>
+    <img src="https://placedog.net/400/300?id=7" alt="Cute dog" style="max-width:300px; border-radius:12px; box-shadow:0 0 10px rgba(0,0,0,0.5);"><br>
+    <button onclick="petDog()">Pet 🐕</button>
     <div class="leaderboard">
-      <h2>🏆 Leaderboard</h2>
-      <ol id="leaderboard-list">
-        <li>0x123...abcd — 12 pets</li>
-        <li>0x456...beef — 8 pets</li>
-        <li>0x789...cafe — 5 pets</li>
+      <h2>🏆 Pet Leaderboard</h2>
+      <ol>
+        <li>0xa1b2...789c — 14 pets</li>
+        <li>0xc3d4...567e — 10 pets</li>
+        <li>0xf6e7...123a — 6 pets</li>
       </ol>
     </div>
   </div>
 
   <div id="gmgn-tab" class="tab-content">
-    <h1>🌅 Say GM or GN</h1>
+    <h1>🌅 Say GM or GN 🌙</h1>
     <button onclick="sayGM()">☀️ GM</button>
     <button onclick="sayGN()">🌙 GN</button>
-    <div class="info" id="gmStatus">GM count: -</div>
-    $1
     <div class="leaderboard">
       <h2>🏆 GM/GN Leaderboard</h2>
       <ol>
-        <li>0xaaa...1234 — 15 GM / 12 GN</li>
-        <li>0xbbb...5678 — 10 GM / 8 GN</li>
-        <li>0xccc...abcd — 5 GM / 7 GN</li>
+        <li>0xa1b2...789c — 10 GM / 8 GN</li>
+        <li>0xc3d4...567e — 9 GM / 7 GN</li>
+        <li>0xf6e7...123a — 5 GM / 6 GN</li>
+      </ol>
+    </div>
+  </div>
+
+  <div id="flip-tab" class="tab-content">
+    <h1>🪙 Flip Coin</h1>
+    <div id="coin" style="font-size: 48px; margin: 20px;">🪙</div>
+    <button onclick="flipMonad()">Flip Coin</button>
+    <div class="info" id="flipResult">Flip result: -</div>
+    <div class="leaderboard">
+      <h2>🏆 Flip Leaderboard</h2>
+      <ol id="flip-leaderboard">
+        <li>Loading...</li>
       </ol>
     </div>
   </div>
 
   <script>
-    const CONTRACT_ADDRESS = "0xc53abe4c593b9440407f8ac1b346f3f999e6d8ed";
-    const ABI = [
-      "function pet() public",
-      "function getMyPets(address user) public view returns (uint256)",
-      "function totalPets() public view returns (uint256)"
+    const FLIP_CONTRACT_ADDRESS = "0xc5b2280d1e2f155f9a2be2af7e78190658874106";
+    const FLIP_ABI = [
+      "function flip() public",
+      "function getMyFlips(address) public view returns (uint256)"
     ];
+
     const GREET_CONTRACT_ADDRESS = "0xbc8b78f3e2348d4b5e0390fe700ce54b59931da4";
     const GREET_ABI = [
       "function gm() public",
-      "function gn() public",
-      "function getGmCount(address user) public view returns (uint256)",
-      "function getGnCount(address user) public view returns (uint256)"
+      "function gn() public"
     ];
 
-    let provider, signer, contract, userAddress;
+    let provider, signer, userAddress, flipContract;
+    let userXP = 0;
+    let lastVisit = localStorage.getItem("lastVisit");
+    let today = new Date().toDateString();
+    let dailyMultiplier = (lastVisit === today) ? 2 : 1;
+    localStorage.setItem("lastVisit", today);
 
     async function connect() {
-      provider = new ethers.providers.Web3Provider(window.ethereum, "any");
+      provider = new ethers.providers.Web3Provider(window.ethereum);
       await provider.send("eth_requestAccounts", []);
       signer = provider.getSigner();
       userAddress = await signer.getAddress();
-      contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
-      updateCounts();
-      document.getElementById("connectBtn").innerText = `🟢 ${userAddress.slice(0,6)}...${userAddress.slice(-4)}`;
+      flipContract = new ethers.Contract(FLIP_CONTRACT_ADDRESS, FLIP_ABI, signer);
+      document.getElementById("connectBtn").innerText = `🟢 ${userAddress.slice(0, 6)}...${userAddress.slice(-4)}`;
+      updateFlipLeaderboard();
     }
 
-    async function petDog() {
-      if (!contract) return alert("Please connect your wallet first.");
-      const dog = document.getElementById("dog-img");
-      document.getElementById("bark-sound").play();
-      dog.classList.add("bounce");
-      setTimeout(() => dog.classList.remove("bounce"), 600);
-      try {
-        const tx = await contract.pet();
-        await tx.wait();
-        updateCounts();
-        flashEmoji();
-      } catch (e) {
-        alert("Tx failed");
-        console.error(e);
-      }
+    function addXP(amount) {
+      const gain = amount * dailyMultiplier;
+      userXP += gain;
+      document.getElementById("xpCounter").innerText = userXP;
     }
 
-    async function updateCounts() {
-      const yourPets = await contract.getMyPets(userAddress);
-      const totalPets = await contract.totalPets();
-      document.getElementById("yourPets").innerText = `Your Pets: ${yourPets}`;
-      document.getElementById("totalPets").innerText = `Total Pets: ${totalPets}`;
-    }
-
-    function flashEmoji() {
-      const area = document.getElementById("emoji-area");
-      const emojis = ["💖", "🐶", "🎉", "✨", "🥎", "💥"];
-      area.innerHTML = `<div class='emoji-flash'>${emojis[Math.floor(Math.random() * emojis.length)]}</div>`;
-    }
-
-    function showTab(id) {
+    function showTab(event, id) {
       document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
       document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
       event.target.classList.add('active');
-      document.getElementById(id).classList.add('active');
+      document.getElementById(id)?.classList.add('active');
+    }
+
+    async function petDog() {
+      addXP(10);
+      alert("You pet the dog!");
     }
 
     async function sayGM() {
+      if (!signer) return alert("Connect wallet first");
       const greetContract = new ethers.Contract(GREET_CONTRACT_ADDRESS, GREET_ABI, signer);
       try {
         const tx = await greetContract.gm();
         await tx.wait();
-        updateGreetCounts(greetContract);
+        addXP(5);
         alert("☀️ You said GM!");
       } catch (e) {
         console.error(e);
-        alert("GM tx failed");
+        alert("GM failed");
       }
     }
 
     async function sayGN() {
+      if (!signer) return alert("Connect wallet first");
       const greetContract = new ethers.Contract(GREET_CONTRACT_ADDRESS, GREET_ABI, signer);
       try {
         const tx = await greetContract.gn();
         await tx.wait();
-        updateGreetCounts(greetContract);
+        addXP(5);
         alert("🌙 You said GN!");
       } catch (e) {
         console.error(e);
-        alert("GN tx failed");
+        alert("GN failed");
       }
     }
 
-    async function updateGreetCounts(contract) {
+    async function flipMonad() {
+      if (!signer || !flipContract) return alert("Connect wallet first");
+      const coin = document.getElementById("coin");
+      const isHeads = Math.random() < 0.5;
+      const result = isHeads ? "HEADS" : "TAILS";
+      coin.style.transform = `rotateY(${isHeads ? 0 : 180}deg)`;
       try {
-        const address = await contract.signer.getAddress();
-        const gm = await contract.getGmCount(address);
-        const gn = await contract.getGnCount(address);
-        document.getElementById("gmStatus").innerText = `GM count: ${gm}`;
-        document.getElementById("gnStatus").innerText = `GN count: ${gn}`;
+        const tx = await flipContract.flip();
+        await tx.wait();
+        addXP(3);
+        document.getElementById("flipResult").innerText = `Flip result: ${result}`;
+        updateFlipLeaderboard();
       } catch (e) {
-        console.warn("Could not fetch greet counts", e);
+        console.error(e);
+        alert("Flip tx failed");
+      }
+    }
+
+    async function updateFlipLeaderboard() {
+      const list = document.getElementById('flip-leaderboard');
+      if (!list || !provider) return;
+      list.innerHTML = '';
+      const addresses = [userAddress];
+      for (let addr of addresses) {
+        try {
+          const contract = new ethers.Contract(FLIP_CONTRACT_ADDRESS, FLIP_ABI, provider);
+          const flips = await contract.getMyFlips(addr);
+          const li = document.createElement('li');
+          li.textContent = `${addr.slice(0, 6)}...${addr.slice(-4)} — ${flips} flips`;
+          list.appendChild(li);
+        } catch (err) {
+          console.error("Error loading flips for", addr, err);
+        }
       }
     }
   </script>
