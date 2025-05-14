@@ -3,26 +3,18 @@
 <head>
   <meta charset="UTF-8">
   <title>Monad Fun Page</title>
-  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js">
-    async function updatePetLeaderboard() {
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js">    async function updatePetLeaderboard() {
       const list = document.getElementById('pet-leaderboard');
       if (!list || !provider || !userAddress) return;
       list.innerHTML = '';
-      const addresses = [userAddress];
       const contract = new ethers.Contract("0xc53abe4c593b9440407f8ac1b346f3f999e6d8ed", ["function getMyPets(address) public view returns (uint256)"], provider);
-      for (let addr of addresses) {
-        try {
-          const count = await contract.getMyPets(addr);
-          const li = document.createElement('li');
-          li.textContent = `${addr.slice(0,6)}...${addr.slice(-4)} — ${count.toString()} pets`;
-          list.appendChild(li);
-        } catch (err) {
-          console.error("Error loading pets for", addr, err);
-        }
-      }
-        } catch (err) {
-          console.error("Error loading pets for", addr, err);
-        }
+      try {
+        const count = await contract.getMyPets(userAddress);
+        const li = document.createElement('li');
+        li.textContent = `${userAddress.slice(0,6)}...${userAddress.slice(-4)} — ${count.toString()} pets`;
+        list.appendChild(li);
+      } catch (err) {
+        console.error("Error loading pets", err);
       }
     }
 
@@ -30,7 +22,7 @@
       const list = document.getElementById('gmgn-leaderboard');
       if (!list || !provider || !userAddress) return;
       list.innerHTML = '';
-      const contract = new ethers.Contract("0xbc8b78f3e2348d4b5e0390fe700ce54b59931da4", [
+      const contract = new ethers.Contract(GREET_CONTRACT_ADDRESS, [
         "function getGmCount(address) public view returns (uint256)",
         "function getGnCount(address) public view returns (uint256)"
       ], provider);
@@ -41,7 +33,7 @@
         li.textContent = `${userAddress.slice(0,6)}...${userAddress.slice(-4)} — ${gm} GM / ${gn} GN`;
         list.appendChild(li);
       } catch (err) {
-        console.error("Error loading gm/gn for", userAddress, err);
+        console.error("Error loading gm/gn", err);
       }
     }
   </script>
