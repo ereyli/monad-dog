@@ -11,10 +11,11 @@
       padding-top: 50px; 
       background: #fdf6ec; 
     }
-    img { 
+    #dog-img { 
       width: 240px; 
       border-radius: 12px; 
       box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+      transition: all 0.3s ease;
     }
     button {
       font-size: 20px;
@@ -39,7 +40,7 @@
 <body>
 
   <h1>🐶 Pet The Dog</h1>
-  <img src="https://placedog.net/400/300" alt="Cute Dog" />
+  <img id="dog-img" src="https://placedog.net/400/300?id=1" alt="Cute Dog" />
   <br>
   <button onclick="connect()">🔌 Connect Wallet</button>
   <br>
@@ -49,7 +50,7 @@
   <div class="info" id="totalPets">Total Pets: -</div>
 
   <script>
-    const CONTRACT_ADDRESS = "0xc53abe4c593b9440407f8ac1b346f3f999e6d8ed"; // <-- Bunu kendi adresinle değiştir
+    const CONTRACT_ADDRESS = "0xc53abe4c593b9440407f8ac1b346f3f999e6d8ed";
     const ABI = [
       "function pet() public",
       "function getMyPets(address user) public view returns (uint256)",
@@ -61,7 +62,7 @@
     async function connect() {
       if (!window.ethereum) return alert("Please install MetaMask");
 
-      provider = new ethers.providers.Web3Provider(window.ethereum, "any"); // ağ değişimi için
+      provider = new ethers.providers.Web3Provider(window.ethereum, "any");
       await provider.send("eth_requestAccounts", []);
       signer = provider.getSigner();
       userAddress = await signer.getAddress();
@@ -77,10 +78,17 @@
         await tx.wait();
         alert("🐶 You petted the dog!");
         updateCounts();
+        animateDog();
       } catch (e) {
         console.error(e);
         alert("Tx failed!");
       }
+    }
+
+    function animateDog() {
+      const dogImg = document.getElementById("dog-img");
+      const randomId = Math.floor(Math.random() * 10) + 1;
+      dogImg.src = `https://placedog.net/400/300?id=${randomId}`;
     }
 
     async function updateCounts() {
