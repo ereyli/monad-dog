@@ -59,7 +59,9 @@
     let provider, signer, contract, userAddress;
 
     async function connect() {
-      provider = new ethers.providers.Web3Provider(window.ethereum);
+      if (!window.ethereum) return alert("Please install MetaMask");
+
+      provider = new ethers.providers.Web3Provider(window.ethereum, "any"); // ağ değişimi için
       await provider.send("eth_requestAccounts", []);
       signer = provider.getSigner();
       userAddress = await signer.getAddress();
