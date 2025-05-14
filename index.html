@@ -1,13 +1,94 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vite + React + TS</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Pet The Dog 🐶</title>
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+  <style>
+    body { 
+      font-family: sans-serif; 
+      text-align: center; 
+      padding-top: 50px; 
+      background: #fdf6ec; 
+    }
+    img { 
+      width: 240px; 
+      border-radius: 12px; 
+      box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    }
+    button {
+      font-size: 20px;
+      padding: 12px 24px;
+      margin-top: 20px;
+      border: none;
+      border-radius: 8px;
+      background-color: #ffcc00;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+    button:hover {
+      background-color: #ffaa00;
+    }
+    .info {
+      margin-top: 30px; 
+      font-size: 18px; 
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>🐶 Pet The Dog</h1>
+  <img src="https://placedog.net/400/300" alt="Cute Dog" />
+  <br>
+  <button onclick="connect()">🔌 Connect Wallet</button>
+  <br>
+  <button onclick="petDog()">🐾 Pet the Dog</button>
+
+  <div class="info" id="yourPets">Your Pets: -</div>
+  <div class="info" id="totalPets">Total Pets: -</div>
+
+  <script>
+    const CONTRACT_ADDRESS = "0xc53abe4c593b9440407f8ac1b346f3f999e6d8ed"; // <-- Bunu kendi adresinle değiştir
+    const ABI = [
+      "function pet() public",
+      "function getMyPets(address user) public view returns (uint256)",
+      "function totalPets() public view returns (uint256)"
+    ];
+
+    let provider, signer, contract, userAddress;
+
+    async function connect() {
+      provider = new ethers.providers.Web3Provider(window.ethereum);
+      await provider.send("eth_requestAccounts", []);
+      signer = provider.getSigner();
+      userAddress = await signer.getAddress();
+      contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
+      updateCounts();
+      alert("Wallet connected!");
+    }
+
+    async function petDog() {
+      if (!contract) return alert("Please connect your wallet first.");
+      try {
+        const tx = await contract.pet();
+        await tx.wait();
+        alert("🐶 You petted the dog!");
+        updateCounts();
+      } catch (e) {
+        console.error(e);
+        alert("Tx failed!");
+      }
+    }
+
+    async function updateCounts() {
+      if (!contract || !userAddress) return;
+      const yours = await contract.getMyPets(userAddress);
+      const total = await contract.totalPets();
+      document.getElementById("yourPets").innerText = `Your Pets: ${yours}`;
+      document.getElementById("totalPets").innerText = `Total Pets: ${total}`;
+    }
+  </script>
+
+</body>
 </html>
