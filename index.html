@@ -71,6 +71,35 @@
         console.error("Error loading gm/gn", err);
       }
     }
+      async function updateTotalLeaderboard() {
+      const list = document.getElementById('total-leaderboard');
+      if (!list || !provider || !userAddress) return;
+      list.innerHTML = '';
+      const petContract = new ethers.Contract("0xc53abe4c593b9440407f8ac1b346f3f999e6d8ed", ["function getMyPets(address) view returns (uint256)"] , provider);
+      const greetContract = new ethers.Contract(GREET_CONTRACT_ADDRESS, [
+        "function getGmCount(address) view returns (uint256)",
+        "function getGnCount(address) view returns (uint256)"
+      ], provider);
+      const flipContract = new ethers.Contract(FLIP_CONTRACT_ADDRESS, ["function getMyFlips(address) view returns (uint256)"] , provider);
+
+      try {
+        const [pets, gm, gn, flips] = await Promise.all([
+          petContract.getMyPets(userAddress),
+          greetContract.getGmCount(userAddress),
+          greetContract.getGnCount(userAddress),
+          flipContract.getMyFlips(userAddress)
+        ]);
+
+        const total = pets.toNumber() + gm.toNumber() + gn.toNumber() + flips.toNumber();
+        const li = document.createElement('li');
+        li.textContent = `${userAddress.slice(0,6)}...${userAddress.slice(-4)} — ${total} total TX`;
+        list.appendChild(li);
+      } catch (e) {
+        console.error("Error loading total leaderboard", e);
+      }
+    }
+
+    updateTotalLeaderboard();
   </script>
   <style>
     body {
@@ -157,34 +186,37 @@
 <body>
   <div class="xp-box">✨ XP: <span id="xpCounter">0</span></div>
   <div class="connect-box" style="position: fixed; top: -4px; right: 10px; z-index: 10;">
-    <button id="connectBtn" onclick="connect()">🔌 Connect Wallet</button>
+    <button id="connectBtn" onclick="connect()">Connect Wallet</button>
   </div>
 
   <div class="tabs">
     <div class="tab active" onclick="showTab(event, 'pet-tab')">🐶 Pet The Dog</div>
     <div class="tab" onclick="showTab(event, 'gmgn-tab')">🌅 GM / GN</div>
     <div class="tab" onclick="showTab(event, 'flip-tab')">🪙 Flip Coin</div>
+    <div class="tab" onclick="showTab(event, 'leaderboard-tab')">📊 Leaderboard</div>
+  </div>
+  </div>
   </div>
 
   <div id="pet-tab" class="tab-content active">
     <h1>🐶 Pet The Dog</h1>
-    <img src="https://placedog.net/400/300?id=7" alt="Cute dog" style="max-width:300px; border-radius:12px; box-shadow:0 0 10px rgba(0,0,0,0.5);"><br>
+    <img id="dogImage" src="https://placedog.net/400/300?id=7" alt="Cute dog" style="max-width:300px; border-radius:12px; box-shadow:0 0 10px rgba(0,0,0,0.5);"><br>
     <button onclick="petDog()">Pet 🐕</button>
-    <div class="leaderboard">
-      <h2>🏆 Pet Leaderboard</h2>
-      <ol id="pet-leaderboard">
-        <li>Loading...</li>
-      </ol>
-    </div>
+    
   </div>
 
   <div id="gmgn-tab" class="tab-content">
-    <h1>🌅 Say GM or GN 🌙</h1>
-    <button onclick="sayGM()">☀️ GM</button>
-    <button onclick="sayGN()">🌙 GN</button>
+    
+    <h1>🌅 GM / GN</h1>
+    <button onclick="sayGM()"><span>☀️ GM</span></button>
+    <button onclick="sayGN()"><span>🌙 GN</span></button>
+  </div>
+
+<div id="leaderboard-tab" class="tab-content">
+    <h1>📊 Global Leaderboard</h1>
     <div class="leaderboard">
-      <h2>🏆 GM/GN Leaderboard</h2>
-      <ol id="gmgn-leaderboard">
+      <h2>🔥 Top Users by Total TX</h2>
+      <ol id="total-leaderboard">
         <li>Loading...</li>
       </ol>
     </div>
@@ -195,12 +227,7 @@
     <div id="coin" style="font-size: 48px; margin: 20px;">🪙</div>
     <button onclick="flipMonad()">Flip Coin</button>
     <div class="info" id="flipResult">Flip result: -</div>
-    <div class="leaderboard">
-      <h2>🏆 Flip Leaderboard</h2>
-      <ol id="flip-leaderboard">
-        <li>Loading...</li>
-      </ol>
-    </div>
+    
   </div>
 
   <script>
@@ -249,6 +276,9 @@
     }
 
     async function petDog() {
+      const dogImage = document.getElementById('dogImage');
+      const newId = Math.floor(Math.random() * 50) + 1;
+      dogImage.src = `https://placedog.net/400/300?id=${newId}`;
       if (!signer) return alert("Connect wallet first");
       const petContract = new ethers.Contract("0xc53abe4c593b9440407f8ac1b346f3f999e6d8ed", [
         "function pet() public",
@@ -267,7 +297,7 @@
     }
 
     async function sayGM() {
-      if (!signer) return alert("Connect wallet first");
+      document.querySelector('button[onclick="sayGM()"] span').textContent = '☀️ GM ✔';if (!signer) return alert("Connect wallet first");
       const greetContract = new ethers.Contract(GREET_CONTRACT_ADDRESS, GREET_ABI, signer);
       try {
         const tx = await greetContract.gm();
@@ -281,7 +311,7 @@
     }
 
     async function sayGN() {
-      if (!signer) return alert("Connect wallet first");
+      document.querySelector('button[onclick="sayGN()"] span').textContent = '🌙 GN ✔';if (!signer) return alert("Connect wallet first");
       const greetContract = new ethers.Contract(GREET_CONTRACT_ADDRESS, GREET_ABI, signer);
       try {
         const tx = await greetContract.gn();
