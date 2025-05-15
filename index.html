@@ -319,14 +319,19 @@
     async function flipMonad() {
       if (!signer || !flipContract) return alert("Connect wallet first");
       const coin = document.getElementById("coin");
-      const isHeads = Math.random() < 0.5;
-      const result = isHeads ? "HEADS" : "TAILS";
-      coin.style.transition = 'transform 0.6s ease';
-      coin.style.transform = `rotateY(${isHeads ? 360 : 180}deg)`;
+      let spin = 0;
+      document.getElementById("flipResult").innerText = "Flipping...";
+      const spinning = setInterval(() => {
+        spin += 36;
+        coin.style.transform = `rotateY(${spin}deg)`;
+      }, 100);
+
       try {
         const tx = await flipContract.flip();
         await tx.wait();
         addXP(3);
+        clearInterval(spinning);
+        coin.style.transform = `rotateY(${(Math.random() < 0.5 ? 0 : 180)}deg)`;
         document.getElementById("flipResult").innerText = `Flip result: ${result}`;
         updateFlipLeaderboard();
       } catch (e) {
