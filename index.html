@@ -193,7 +193,7 @@
     <div class="tab active" onclick="showTab(event, 'pet-tab')">🐶 Pet The Dog</div>
     <div class="tab" onclick="showTab(event, 'gmgn-tab')">🌅 GM / GN</div>
     <div class="tab" onclick="showTab(event, 'flip-tab')">🪙 Flip Coin</div>
-    <div class="tab" onclick="showTab(event, 'leaderboard-tab')">📊 Leaderboard</div>
+    
   </div>
   </div>
   </div>
@@ -212,15 +212,7 @@
     <button onclick="sayGN()"><span>🌙 GN</span></button>
   </div>
 
-<div id="leaderboard-tab" class="tab-content">
-    <h1>📊 Global Leaderboard</h1>
-    <div class="leaderboard">
-      <h2>🔥 Top Users by Total TX</h2>
-      <ol id="total-leaderboard">
-        <li>Loading...</li>
-      </ol>
-    </div>
-  </div>
+</div>
 
   <div id="flip-tab" class="tab-content">
     <h1>🪙 Flip Coin</h1>
@@ -329,7 +321,8 @@
       const coin = document.getElementById("coin");
       const isHeads = Math.random() < 0.5;
       const result = isHeads ? "HEADS" : "TAILS";
-      coin.style.transform = `rotateY(${isHeads ? 0 : 180}deg)`;
+      coin.style.transition = 'transform 0.6s ease';
+      coin.style.transform = `rotateY(${isHeads ? 360 : 180}deg)`;
       try {
         const tx = await flipContract.flip();
         await tx.wait();
