@@ -243,6 +243,38 @@
       }, 100);
       try {
         const tx = await flipContract.flip();
+        const receipt = await tx.wait();
+        clearInterval(spinning);
+        const result = Math.random() < 0.5 ? "Heads" : "Tails";
+        coin.style.transform = `rotateY(${result === "Heads" ? 0 : 180}deg)`;
+        document.getElementById("flipResult").innerText = `✅ Flip result: ${result}`;
+        addXP(3);
+        updateFlipLeaderboard();
+      } catch (e) {
+        clearInterval(spinning);
+        console.error(e);
+        document.getElementById("flipResult").innerText = "❌ Flip failed";
+      }
+    }deg)`;
+      }, 100);
+      try {
+        const tx = await flipContract.flip();
+        const receipt = await tx.wait();
+        clearInterval(spinning);
+        const result = Math.random() < 0.5 ? "Heads" : "Tails";
+        coin.style.transform = `rotateY(${result === "Heads" ? 0 : 180}deg)`;
+        document.getElementById("flipResult").innerText = `Flip result: ${result}`;
+        addXP(3);
+        updateFlipLeaderboard();
+      } catch (e) {
+        clearInterval(spinning);
+        console.error(e);
+        document.getElementById("flipResult").innerText = "Flip failed";
+      }
+    }deg)`;
+      }, 100);
+      try {
+        const tx = await flipContract.flip();
         await tx.wait();
         clearInterval(spinning);
         const result = Math.random() < 0.5 ? "Heads" : "Tails";
