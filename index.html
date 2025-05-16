@@ -187,9 +187,8 @@
       if (network.chainId !== MONAD_TESTNET_CHAIN_ID) {
         alert(`You are not connected to ${targetNetworkName}. Please switch to ${targetNetworkName} in your wallet.`);
         return;
-        } catch (switchError) {
-          alert(`Please switch to ${targetNetworkName} manually in your wallet to use this app.`);
-          return;
+      }
+
         }
       }
 
