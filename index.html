@@ -5,6 +5,15 @@
   <title>Monad Fun Page</title>
   <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
   <style>
+    html {
+      box-sizing: border-box;
+      font-size: 16px;
+    }
+
+    *, *:before, *:after {
+      box-sizing: inherit;
+    }
+
     body {
       font-family: sans-serif;
       background: #1e003e;
@@ -64,6 +73,40 @@
       font-size: 18px;
       font-weight: bold;
       box-shadow: 0 0 10px #a259ff;
+    }
+      @media screen and (max-width: 600px) {
+      .tabs {
+        flex-direction: column;
+      }
+
+      .tab {
+        width: 100%;
+        text-align: center;
+        padding: 12px 0;
+      }
+
+      .xp-box {
+        position: static;
+        margin: 10px auto;
+        display: block;
+        text-align: center;
+      }
+
+      .connect-box {
+        position: static !important;
+        margin: 0 auto;
+        text-align: center;
+        padding: 10px;
+      }
+
+      button {
+        width: 90%;
+        max-width: 300px;
+      }
+
+      #coin {
+        font-size: 32px !important;
+      }
     }
   </style>
 </head>
