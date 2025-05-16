@@ -114,7 +114,7 @@
 <body>
   <div class="xp-box">✨ XP: <span id="xpCounter">0</span></div>
   <div class="connect-box" style="position: fixed; top: -4px; right: 10px; z-index: 10;">
-    <button id="connectBtn" onclick="handleWalletConnection()">Connect Wallet</button>
+    <button id="connectBtn">Connect Wallet</button>
   </div>
 
   <div class="tabs">
@@ -172,35 +172,43 @@
     }
 
     async function connect() {
-  const MONAD_TESTNET_CHAIN_ID = 10143;
-  const targetNetworkName = "Monad Testnet";
+      const MONAD_TESTNET_CHAIN_ID = 10143;
+      const targetNetworkName = "Monad Testnet";
 
-  if (!window.ethereum) {
-    alert("MetaMask is not installed");
-    return;
-  }
+      if (!window.ethereum) {
+        alert("MetaMask is not installed");
+        return;
+      }
 
-  provider = new ethers.providers.Web3Provider(window.ethereum);
-
-  try {
-    await provider.send("eth_requestAccounts", []);
-    const network = await provider.getNetwork();
-
-    if (network.chainId !== MONAD_TESTNET_CHAIN_ID) {
-      alert(`You are not connected to ${targetNetworkName}. Please switch to ${targetNetworkName} in your wallet.`);
-      return;
+      provider = new ethers.providers.Web3Provider(window.ethereum);
+      
+      try {
+        await provider.send("eth_requestAccounts", []);
+        
+        const network = await provider.getNetwork();
+        
+        if (network.chainId !== MONAD_TESTNET_CHAIN_ID) {
+          try {
+            await window.ethereum.request({
+              method: 'wallet_switchEthereumChain',
+              params: [{ chainId: '0x' + MONAD_TESTNET_CHAIN_ID.toString(16) }],
+            });
+          } catch (switchError) {
+            alert(`Please switch to ${targetNetworkName} in your wallet.`);
+            return;
+          }
+        }
+        
+        signer = provider.getSigner();
+        userAddress = await signer.getAddress();
+        flipContract = new ethers.Contract(FLIP_CONTRACT_ADDRESS, FLIP_ABI, signer);
+        isConnected = true;
+        document.getElementById("connectBtn").innerText = `🟢 ${userAddress.slice(0, 6)}...${userAddress.slice(-4)}`;
+      } catch (error) {
+        console.error("Connection error:", error);
+        alert("Wallet connection failed: " + error.message);
+      }
     }
-
-    signer = provider.getSigner();
-    userAddress = await signer.getAddress();
-    flipContract = new ethers.Contract(FLIP_CONTRACT_ADDRESS, FLIP_ABI, signer);
-    isConnected = true;
-    document.getElementById("connectBtn").innerText = `🟢 ${userAddress.slice(0, 6)}...${userAddress.slice(-4)}`;
-  } catch (error) {
-    console.error("Connection error:", error);
-    alert("Wallet connection failed: " + error.message);
-  }
-}
 
     function addXP(amount) {
       userXP += amount;
@@ -215,7 +223,11 @@
     }
 
     async function flipMonad() {
-      if (!signer) return alert("Connect wallet first");
+      if (!isConnected) {
+        alert("Connect wallet first");
+        return;
+      }
+      
       const coin = document.getElementById("coin");
       let spin = 0;
       document.getElementById("flipResult").innerText = "Flipping...";
@@ -223,6 +235,7 @@
         spin += 36;
         coin.style.transform = `rotateY(${spin}deg)`;
       }, 100);
+      
       try {
         const tx = await flipContract.flip();
         await tx.wait();
@@ -239,10 +252,15 @@
     }
 
     async function petDog() {
-      if (!signer) return alert("Connect wallet first");
+      if (!isConnected) {
+        alert("Connect wallet first");
+        return;
+      }
+      
       const dogImage = document.getElementById('dogImage');
       dogImage.src = `https://placedog.net/400/300?id=${Math.floor(Math.random() * 50) + 1}`;
       const contract = new ethers.Contract(PET_CONTRACT_ADDRESS, PET_ABI, signer);
+      
       try {
         const tx = await contract.pet();
         await tx.wait();
@@ -255,9 +273,14 @@
     }
 
     async function sayGM() {
-      if (!signer) return alert("Connect wallet first");
+      if (!isConnected) {
+        alert("Connect wallet first");
+        return;
+      }
+      
       document.querySelector('button[onclick="sayGM()"] span').textContent = '☀️ GM ✔';
       const contract = new ethers.Contract(GREET_CONTRACT_ADDRESS, GREET_ABI, signer);
+      
       try {
         const tx = await contract.gm();
         await tx.wait();
@@ -270,9 +293,14 @@
     }
 
     async function sayGN() {
-      if (!signer) return alert("Connect wallet first");
+      if (!isConnected) {
+        alert("Connect wallet first");
+        return;
+      }
+      
       document.querySelector('button[onclick="sayGN()"] span').textContent = '🌙 GN ✔';
       const contract = new ethers.Contract(GREET_CONTRACT_ADDRESS, GREET_ABI, signer);
+      
       try {
         const tx = await contract.gn();
         await tx.wait();
@@ -283,11 +311,11 @@
         alert("GN failed");
       }
     }
+
+    // Initialize when DOM is loaded
+    window.addEventListener('DOMContentLoaded', () => {
+      document.getElementById("connectBtn").onclick = handleWalletConnection;
+    });
   </script>
-<script>
-  window.addEventListener('DOMContentLoaded', () => {
-    document.getElementById("connectBtn").onclick = handleWalletConnection;
-  });
-</script>
 </body>
 </html>
