@@ -179,8 +179,18 @@
       const network = await provider.getNetwork();
 
       if (network.chainId !== MONAD_TESTNET_CHAIN_ID) {
-        alert(`Please switch to ${targetNetworkName} to use this app.`);
-        return;
+        try {
+          await window.ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: '0x278f' }] // 10143 in hex
+          });
+          // Ağ değiştikten sonra sayfayı yeniden yükle
+          window.location.reload();
+        } catch (switchError) {
+          alert(`Please switch to ${targetNetworkName} to use this app.`);
+          return;
+        }
+      
       }
       provider = new ethers.providers.Web3Provider(window.ethereum);
       await provider.send("eth_requestAccounts", []);
