@@ -185,14 +185,8 @@
       const network = await provider.getNetwork();
 
       if (network.chainId !== MONAD_TESTNET_CHAIN_ID) {
-        alert(`You are not connected to ${targetNetworkName}. Attempting to switch...`);
-        try {
-          await window.ethereum.request({
-            method: 'wallet_switchEthereumChain',
-            params: [{ chainId: MONAD_CHAIN_ID_HEX }]
-          });
-          // Ağ değiştikten sonra tekrar connect fonksiyonunu çağır
-          return connect();
+        alert(`You are not connected to ${targetNetworkName}. Please switch to ${targetNetworkName} in your wallet.`);
+        return;
         } catch (switchError) {
           alert(`Please switch to ${targetNetworkName} manually in your wallet to use this app.`);
           return;
