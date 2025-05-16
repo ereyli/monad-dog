@@ -180,33 +180,76 @@
         return;
       }
 
-      provider = new ethers.providers.Web3Provider(window.ethereum);
-      
       try {
+        // Request account access
+        provider = new ethers.providers.Web3Provider(window.ethereum);
         await provider.send("eth_requestAccounts", []);
         
+        // Check network
         const network = await provider.getNetwork();
+        console.log("Connected to network:", network);
         
         if (network.chainId !== MONAD_TESTNET_CHAIN_ID) {
           try {
+            // Try to switch network
             await window.ethereum.request({
               method: 'wallet_switchEthereumChain',
               params: [{ chainId: '0x' + MONAD_TESTNET_CHAIN_ID.toString(16) }],
             });
+            
+            // Refresh provider after network switch
+            provider = new ethers.providers.Web3Provider(window.ethereum);
           } catch (switchError) {
-            alert(`Please switch to ${targetNetworkName} in your wallet.`);
-            return;
+            console.error("Network switch error:", switchError);
+            
+            // Try to add the network if it doesn't exist
+            try {
+              await window.ethereum.request({
+                method: 'wallet_addEthereumChain',
+                params: [{
+                  chainId: '0x' + MONAD_TESTNET_CHAIN_ID.toString(16),
+                  chainName: 'Monad Testnet',
+                  nativeCurrency: {
+                    name: 'Monad',
+                    symbol: 'MONAD',
+                    decimals: 18
+                  },
+                  rpcUrls: ['https://rpc.monad.xyz/monad-testnet'],
+                  blockExplorerUrls: ['https://explorer.monad.xyz/']
+                }]
+              });
+              
+              // Refresh provider after network add
+              provider = new ethers.providers.Web3Provider(window.ethereum);
+            } catch (addError) {
+              console.error("Add network error:", addError);
+              alert(`Please manually switch to ${targetNetworkName} in your wallet.`);
+              return;
+            }
           }
         }
         
+        // Get signer and address
         signer = provider.getSigner();
         userAddress = await signer.getAddress();
+        console.log("Connected to address:", userAddress);
+        
+        // Initialize contracts with this signer
         flipContract = new ethers.Contract(FLIP_CONTRACT_ADDRESS, FLIP_ABI, signer);
+        
+        // Update button and status
         isConnected = true;
         document.getElementById("connectBtn").innerText = `🟢 ${userAddress.slice(0, 6)}...${userAddress.slice(-4)}`;
+        
+        // Log gas price for debugging
+        const gasPrice = await provider.getGasPrice();
+        console.log("Current gas price:", ethers.utils.formatUnits(gasPrice, "gwei"), "gwei");
+        
+        // Show successful connection
+        console.log("Wallet connected successfully!");
       } catch (error) {
         console.error("Connection error:", error);
-        alert("Wallet connection failed: " + error.message);
+        alert("Wallet connection failed: " + (error.message || "Unknown error"));
       }
     }
 
@@ -237,7 +280,18 @@
       }, 100);
       
       try {
-        const tx = await flipContract.flip();
+        // Re-create contract with current signer to ensure it's properly connected
+        const flipContract = new ethers.Contract(FLIP_CONTRACT_ADDRESS, FLIP_ABI, signer);
+        
+        // Set gas limit explicitly
+        const tx = await flipContract.flip({ 
+          gasLimit: 1000000  // Explicitly set higher gas limit
+        });
+        
+        // Show transaction hash
+        console.log("Transaction hash:", tx.hash);
+        document.getElementById("flipResult").innerText = `Processing: ${tx.hash.slice(0,10)}...`;
+        
         await tx.wait();
         clearInterval(spinning);
         const result = Math.random() < 0.5 ? "Heads" : "Tails";
@@ -246,8 +300,8 @@
         addXP(3);
       } catch (e) {
         clearInterval(spinning);
-        console.error(e);
-        document.getElementById("flipResult").innerText = "❌ Flip failed";
+        console.error("Flip error:", e);
+        document.getElementById("flipResult").innerText = `❌ Flip failed: ${e.message ? e.message.slice(0, 50) : "Unknown error"}`;
       }
     }
 
@@ -259,16 +313,26 @@
       
       const dogImage = document.getElementById('dogImage');
       dogImage.src = `https://placedog.net/400/300?id=${Math.floor(Math.random() * 50) + 1}`;
-      const contract = new ethers.Contract(PET_CONTRACT_ADDRESS, PET_ABI, signer);
       
       try {
-        const tx = await contract.pet();
+        // Re-create contract with current signer to ensure it's properly connected
+        const petContract = new ethers.Contract(PET_CONTRACT_ADDRESS, PET_ABI, signer);
+        
+        // Set gas limit explicitly
+        const tx = await petContract.pet({ 
+          gasLimit: 1000000  // Explicitly set higher gas limit
+        });
+        
+        // Show transaction hash
+        console.log("Pet transaction hash:", tx.hash);
+        alert(`Petting in progress! Tx: ${tx.hash.slice(0,10)}...`);
+        
         await tx.wait();
         addXP(10);
-        alert("You pet the dog!");
+        alert("You pet the dog successfully!");
       } catch (e) {
-        console.error(e);
-        alert("Pet tx failed");
+        console.error("Pet error:", e);
+        alert(`Pet failed: ${e.message ? e.message.slice(0, 50) : "Unknown error"}`);
       }
     }
 
@@ -278,17 +342,29 @@
         return;
       }
       
-      document.querySelector('button[onclick="sayGM()"] span').textContent = '☀️ GM ✔';
-      const contract = new ethers.Contract(GREET_CONTRACT_ADDRESS, GREET_ABI, signer);
+      document.querySelector('button[onclick="sayGM()"] span').textContent = '☀️ GM (Processing...)';
       
       try {
-        const tx = await contract.gm();
+        // Re-create contract with current signer to ensure it's properly connected
+        const greetContract = new ethers.Contract(GREET_CONTRACT_ADDRESS, GREET_ABI, signer);
+        
+        // Set gas limit explicitly
+        const tx = await greetContract.gm({ 
+          gasLimit: 1000000  // Explicitly set higher gas limit
+        });
+        
+        // Show transaction hash
+        console.log("GM transaction hash:", tx.hash);
+        alert(`GM in progress! Tx: ${tx.hash.slice(0,10)}...`);
+        
         await tx.wait();
+        document.querySelector('button[onclick="sayGM()"] span').textContent = '☀️ GM ✔';
         addXP(5);
-        alert("☀️ You said GM!");
+        alert("☀️ You said GM successfully!");
       } catch (e) {
-        console.error(e);
-        alert("GM failed");
+        document.querySelector('button[onclick="sayGM()"] span').textContent = '☀️ GM';
+        console.error("GM error:", e);
+        alert(`GM failed: ${e.message ? e.message.slice(0, 50) : "Unknown error"}`);
       }
     }
 
@@ -298,17 +374,29 @@
         return;
       }
       
-      document.querySelector('button[onclick="sayGN()"] span').textContent = '🌙 GN ✔';
-      const contract = new ethers.Contract(GREET_CONTRACT_ADDRESS, GREET_ABI, signer);
+      document.querySelector('button[onclick="sayGN()"] span').textContent = '🌙 GN (Processing...)';
       
       try {
-        const tx = await contract.gn();
+        // Re-create contract with current signer to ensure it's properly connected
+        const greetContract = new ethers.Contract(GREET_CONTRACT_ADDRESS, GREET_ABI, signer);
+        
+        // Set gas limit explicitly
+        const tx = await greetContract.gn({ 
+          gasLimit: 1000000  // Explicitly set higher gas limit
+        });
+        
+        // Show transaction hash
+        console.log("GN transaction hash:", tx.hash);
+        alert(`GN in progress! Tx: ${tx.hash.slice(0,10)}...`);
+        
         await tx.wait();
+        document.querySelector('button[onclick="sayGN()"] span').textContent = '🌙 GN ✔';
         addXP(5);
-        alert("🌙 You said GN!");
+        alert("🌙 You said GN successfully!");
       } catch (e) {
-        console.error(e);
-        alert("GN failed");
+        document.querySelector('button[onclick="sayGN()"] span').textContent = '🌙 GN';
+        console.error("GN error:", e);
+        alert(`GN failed: ${e.message ? e.message.slice(0, 50) : "Unknown error"}`);
       }
     }
 
