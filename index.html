@@ -172,14 +172,13 @@
     }
 
     async function connect() {
-      const MONAD_TESTNET_CHAIN_ID = "0x504"; // örnek: chainId 1284 = 0x504
+      const MONAD_TESTNET_CHAIN_ID = 1284; // decimal chain ID
       const targetNetworkName = "Monad Testnet";
 
       provider = new ethers.providers.Web3Provider(window.ethereum);
       const network = await provider.getNetwork();
-      const currentChainId = `0x${network.chainId.toString(16)}`;
 
-      if (currentChainId !== MONAD_TESTNET_CHAIN_ID) {
+      if (network.chainId !== MONAD_TESTNET_CHAIN_ID) {
         alert(`Please switch to ${targetNetworkName} to use this app.`);
         return;
       }
