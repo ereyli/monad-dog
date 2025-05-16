@@ -3,104 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>Monad Fun Page</title>
-  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js">    async function updatePetLeaderboard() {
-      const list = document.getElementById('pet-leaderboard');
-      if (!list || !provider || !userAddress) return;
-      list.innerHTML = '';
-      const contract = new ethers.Contract("0xc53abe4c593b9440407f8ac1b346f3f999e6d8ed", ["function getMyPets(address) public view returns (uint256)"], provider);
-      try {
-        const count = await contract.getMyPets(userAddress);
-        const li = document.createElement('li');
-        li.textContent = `${userAddress.slice(0,6)}...${userAddress.slice(-4)} — ${count.toString()} pets`;
-        list.appendChild(li);
-      } catch (err) {
-        console.error("Error loading pets", err);
-      }
-    }
-
-    async function updateGmGnLeaderboard() {
-      const list = document.getElementById('gmgn-leaderboard');
-      if (!list || !provider || !userAddress) return;
-      list.innerHTML = '';
-      const contract = new ethers.Contract(GREET_CONTRACT_ADDRESS, [
-        "function getGmCount(address) public view returns (uint256)",
-        "function getGnCount(address) public view returns (uint256)"
-      ], provider);
-      try {
-        const gm = await contract.getGmCount(userAddress);
-        const gn = await contract.getGnCount(userAddress);
-        const li = document.createElement('li');
-        li.textContent = `${userAddress.slice(0,6)}...${userAddress.slice(-4)} — ${gm} GM / ${gn} GN`;
-        list.appendChild(li);
-      } catch (err) {
-        console.error("Error loading gm/gn", err);
-      }
-    }
-      async function updatePetLeaderboard() {
-      const list = document.getElementById('pet-leaderboard');
-      if (!list || !provider || !userAddress) return;
-      list.innerHTML = '';
-      const contract = new ethers.Contract("0xc53abe4c593b9440407f8ac1b346f3f999e6d8ed", [
-        "function getMyPets(address) public view returns (uint256)"
-      ], provider);
-      try {
-        const count = await contract.getMyPets(userAddress);
-        const li = document.createElement('li');
-        li.textContent = `${userAddress.slice(0, 6)}...${userAddress.slice(-4)} — ${count.toString()} pets`;
-        list.appendChild(li);
-      } catch (err) {
-        console.error("Error loading pets", err);
-      }
-    }
-
-    async function updateGmGnLeaderboard() {
-      const list = document.getElementById('gmgn-leaderboard');
-      if (!list || !provider || !userAddress) return;
-      list.innerHTML = '';
-      const contract = new ethers.Contract(GREET_CONTRACT_ADDRESS, [
-        "function getGmCount(address) public view returns (uint256)",
-        "function getGnCount(address) public view returns (uint256)"
-      ], provider);
-      try {
-        const gm = await contract.getGmCount(userAddress);
-        const gn = await contract.getGnCount(userAddress);
-        const li = document.createElement('li');
-        li.textContent = `${userAddress.slice(0, 6)}...${userAddress.slice(-4)} — ${gm} GM / ${gn} GN`;
-        list.appendChild(li);
-      } catch (err) {
-        console.error("Error loading gm/gn", err);
-      }
-    }
-      async function updateTotalLeaderboard() {
-      const list = document.getElementById('total-leaderboard');
-      if (!list || !provider || !userAddress) return;
-      list.innerHTML = '';
-      const petContract = new ethers.Contract("0xc53abe4c593b9440407f8ac1b346f3f999e6d8ed", ["function getMyPets(address) view returns (uint256)"] , provider);
-      const greetContract = new ethers.Contract(GREET_CONTRACT_ADDRESS, [
-        "function getGmCount(address) view returns (uint256)",
-        "function getGnCount(address) view returns (uint256)"
-      ], provider);
-      const flipContract = new ethers.Contract(FLIP_CONTRACT_ADDRESS, ["function getMyFlips(address) view returns (uint256)"] , provider);
-
-      try {
-        const [pets, gm, gn, flips] = await Promise.all([
-          petContract.getMyPets(userAddress),
-          greetContract.getGmCount(userAddress),
-          greetContract.getGnCount(userAddress),
-          flipContract.getMyFlips(userAddress)
-        ]);
-
-        const total = pets.toNumber() + gm.toNumber() + gn.toNumber() + flips.toNumber();
-        const li = document.createElement('li');
-        li.textContent = `${userAddress.slice(0,6)}...${userAddress.slice(-4)} — ${total} total TX`;
-        list.appendChild(li);
-      } catch (e) {
-        console.error("Error loading total leaderboard", e);
-      }
-    }
-
-    updateTotalLeaderboard();
-  </script>
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
   <style>
     body {
       font-family: sans-serif;
@@ -178,69 +81,98 @@
       font-weight: bold;
       box-shadow: 0 0 10px #a259ff;
     }
-    $1top: 0px;
-      right: 10px;
-    }
   </style>
 </head>
 <body>
   <div class="xp-box">✨ XP: <span id="xpCounter">0</span></div>
   <div class="connect-box" style="position: fixed; top: -4px; right: 10px; z-index: 10;">
-    <button id="connectBtn" onclick="connect()">Connect Wallet</button>
+    <button id="connectBtn" onclick="handleWalletConnection()">Connect Wallet</button>
   </div>
 
   <div class="tabs">
     <div class="tab active" onclick="showTab(event, 'pet-tab')">🐶 Pet The Dog</div>
     <div class="tab" onclick="showTab(event, 'gmgn-tab')">🌅 GM / GN</div>
     <div class="tab" onclick="showTab(event, 'flip-tab')">🪙 Flip Coin</div>
-    
-  </div>
-  </div>
   </div>
 
   <div id="pet-tab" class="tab-content active">
     <h1>🐶 Pet The Dog</h1>
     <img id="dogImage" src="https://placedog.net/400/300?id=7" alt="Cute dog" style="max-width:300px; border-radius:12px; box-shadow:0 0 10px rgba(0,0,0,0.5);"><br>
     <button onclick="petDog()">Pet 🐕</button>
-    
+    <div class="leaderboard">
+      <h2>🐶 Pet Leaderboard</h2>
+      <ol id="pet-leaderboard"></ol>
+    </div>
   </div>
 
   <div id="gmgn-tab" class="tab-content">
-    
     <h1>🌅 GM / GN</h1>
     <button onclick="sayGM()"><span>☀️ GM</span></button>
     <button onclick="sayGN()"><span>🌙 GN</span></button>
+    <div class="leaderboard">
+      <h2>🌅 GM/GN Leaderboard</h2>
+      <ol id="gmgn-leaderboard"></ol>
+    </div>
   </div>
-
-</div>
 
   <div id="flip-tab" class="tab-content">
     <h1>🪙 Flip Coin</h1>
     <div id="coin" style="font-size: 48px; margin: 20px;">🪙</div>
     <button onclick="flipMonad()">Flip Coin</button>
     <div class="info" id="flipResult">Flip result: -</div>
-    
+    <div class="leaderboard">
+      <h2>🪙 Flip Leaderboard</h2>
+      <ol id="flip-leaderboard"></ol>
+    </div>
+  </div>
+
+  <div class="leaderboard">
+    <h2>🔥 Total Leaderboard</h2>
+    <ol id="total-leaderboard"></ol>
   </div>
 
   <script>
     const FLIP_CONTRACT_ADDRESS = "0xc5b2280d1e2f155f9a2be2af7e78190658874106";
+    const GREET_CONTRACT_ADDRESS = "0xbc8b78f3e2348d4b5e0390fe700ce54b59931da4";
+
     const FLIP_ABI = [
       "function flip() public",
       "function getMyFlips(address) public view returns (uint256)"
     ];
 
-    const GREET_CONTRACT_ADDRESS = "0xbc8b78f3e2348d4b5e0390fe700ce54b59931da4";
     const GREET_ABI = [
       "function gm() public",
-      "function gn() public"
+      "function gn() public",
+      "function getGmCount(address) public view returns (uint256)",
+      "function getGnCount(address) public view returns (uint256)"
+    ];
+
+    const PET_CONTRACT_ADDRESS = "0xc53abe4c593b9440407f8ac1b346f3f999e6d8ed";
+    const PET_ABI = [
+      "function pet() public",
+      "function getMyPets(address) public view returns (uint256)"
     ];
 
     let provider, signer, userAddress, flipContract;
     let userXP = 0;
-    let lastVisit = localStorage.getItem("lastVisit");
-    let today = new Date().toDateString();
-    let dailyMultiplier = (lastVisit === today) ? 2 : 1;
-    localStorage.setItem("lastVisit", today);
+    let isConnected = false;
+
+    function disconnect() {
+      provider = null;
+      signer = null;
+      userAddress = null;
+      isConnected = false;
+      document.getElementById("connectBtn").innerText = "Connect Wallet";
+    }
+
+    async function handleWalletConnection() {
+      if (isConnected) {
+        const confirmSwitch = confirm("Already connected. Do you want to disconnect and connect another wallet?");
+        if (!confirmSwitch) return;
+        disconnect();
+      }
+      await connect();
+    }
 
     async function connect() {
       provider = new ethers.providers.Web3Provider(window.ethereum);
@@ -248,15 +180,16 @@
       signer = provider.getSigner();
       userAddress = await signer.getAddress();
       flipContract = new ethers.Contract(FLIP_CONTRACT_ADDRESS, FLIP_ABI, signer);
+      isConnected = true;
       document.getElementById("connectBtn").innerText = `🟢 ${userAddress.slice(0, 6)}...${userAddress.slice(-4)}`;
       updateFlipLeaderboard();
       updatePetLeaderboard();
       updateGmGnLeaderboard();
+      updateTotalLeaderboard();
     }
 
     function addXP(amount) {
-      const gain = amount * dailyMultiplier;
-      userXP += gain;
+      userXP += amount;
       document.getElementById("xpCounter").innerText = userXP;
     }
 
@@ -264,20 +197,16 @@
       document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
       document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
       event.target.classList.add('active');
-      document.getElementById(id)?.classList.add('active');
+      document.getElementById(id).classList.add('active');
     }
 
     async function petDog() {
-      const dogImage = document.getElementById('dogImage');
-      const newId = Math.floor(Math.random() * 50) + 1;
-      dogImage.src = `https://placedog.net/400/300?id=${newId}`;
       if (!signer) return alert("Connect wallet first");
-      const petContract = new ethers.Contract("0xc53abe4c593b9440407f8ac1b346f3f999e6d8ed", [
-        "function pet() public",
-        "function getMyPets(address) public view returns (uint256)"
-      ], signer);
+      const dogImage = document.getElementById('dogImage');
+      dogImage.src = `https://placedog.net/400/300?id=${Math.floor(Math.random() * 50) + 1}`;
+      const contract = new ethers.Contract(PET_CONTRACT_ADDRESS, PET_ABI, signer);
       try {
-        const tx = await petContract.pet();
+        const tx = await contract.pet();
         await tx.wait();
         addXP(10);
         alert("You pet the dog!");
@@ -289,13 +218,15 @@
     }
 
     async function sayGM() {
-      document.querySelector('button[onclick="sayGM()"] span').textContent = '☀️ GM ✔';if (!signer) return alert("Connect wallet first");
-      const greetContract = new ethers.Contract(GREET_CONTRACT_ADDRESS, GREET_ABI, signer);
+      if (!signer) return alert("Connect wallet first");
+      document.querySelector('button[onclick="sayGM()"] span').textContent = '☀️ GM ✔';
+      const contract = new ethers.Contract(GREET_CONTRACT_ADDRESS, GREET_ABI, signer);
       try {
-        const tx = await greetContract.gm();
+        const tx = await contract.gm();
         await tx.wait();
         addXP(5);
         alert("☀️ You said GM!");
+        updateGmGnLeaderboard();
       } catch (e) {
         console.error(e);
         alert("GM failed");
@@ -303,13 +234,15 @@
     }
 
     async function sayGN() {
-      document.querySelector('button[onclick="sayGN()"] span').textContent = '🌙 GN ✔';if (!signer) return alert("Connect wallet first");
-      const greetContract = new ethers.Contract(GREET_CONTRACT_ADDRESS, GREET_ABI, signer);
+      if (!signer) return alert("Connect wallet first");
+      document.querySelector('button[onclick="sayGN()"] span').textContent = '🌙 GN ✔';
+      const contract = new ethers.Contract(GREET_CONTRACT_ADDRESS, GREET_ABI, signer);
       try {
-        const tx = await greetContract.gn();
+        const tx = await contract.gn();
         await tx.wait();
         addXP(5);
         alert("🌙 You said GN!");
+        updateGmGnLeaderboard();
       } catch (e) {
         console.error(e);
         alert("GN failed");
@@ -317,7 +250,7 @@
     }
 
     async function flipMonad() {
-      if (!signer || !flipContract) return alert("Connect wallet first");
+      if (!signer) return alert("Connect wallet first");
       const coin = document.getElementById("coin");
       let spin = 0;
       document.getElementById("flipResult").innerText = "Flipping...";
@@ -325,14 +258,14 @@
         spin += 36;
         coin.style.transform = `rotateY(${spin}deg)`;
       }, 100);
-
       try {
         const tx = await flipContract.flip();
         await tx.wait();
-        addXP(3);
         clearInterval(spinning);
-        coin.style.transform = `rotateY(${(Math.random() < 0.5 ? 0 : 180)}deg)`;
+        const result = Math.random() < 0.5 ? "Heads" : "Tails";
+        coin.style.transform = `rotateY(${result === "Heads" ? 0 : 180}deg)`;
         document.getElementById("flipResult").innerText = `Flip result: ${result}`;
+        addXP(3);
         updateFlipLeaderboard();
       } catch (e) {
         console.error(e);
@@ -344,17 +277,68 @@
       const list = document.getElementById('flip-leaderboard');
       if (!list || !provider) return;
       list.innerHTML = '';
-      const addresses = [userAddress];
-      for (let addr of addresses) {
-        try {
-          const contract = new ethers.Contract(FLIP_CONTRACT_ADDRESS, FLIP_ABI, provider);
-          const flips = await contract.getMyFlips(addr);
-          const li = document.createElement('li');
-          li.textContent = `${addr.slice(0, 6)}...${addr.slice(-4)} — ${flips} flips`;
-          list.appendChild(li);
-        } catch (err) {
-          console.error("Error loading flips for", addr, err);
-        }
+      const contract = new ethers.Contract(FLIP_CONTRACT_ADDRESS, FLIP_ABI, provider);
+      try {
+        const flips = await contract.getMyFlips(userAddress);
+        const li = document.createElement('li');
+        li.textContent = `${userAddress.slice(0, 6)}...${userAddress.slice(-4)} — ${flips} flips`;
+        list.appendChild(li);
+      } catch (err) {
+        console.error("Error loading flips", err);
+      }
+    }
+
+    async function updatePetLeaderboard() {
+      const list = document.getElementById('pet-leaderboard');
+      if (!list || !provider || !userAddress) return;
+      list.innerHTML = '';
+      const contract = new ethers.Contract(PET_CONTRACT_ADDRESS, PET_ABI, provider);
+      try {
+        const count = await contract.getMyPets(userAddress);
+        const li = document.createElement('li');
+        li.textContent = `${userAddress.slice(0, 6)}...${userAddress.slice(-4)} — ${count.toString()} pets`;
+        list.appendChild(li);
+      } catch (err) {
+        console.error("Error loading pets", err);
+      }
+    }
+
+    async function updateGmGnLeaderboard() {
+      const list = document.getElementById('gmgn-leaderboard');
+      if (!list || !provider || !userAddress) return;
+      list.innerHTML = '';
+      const contract = new ethers.Contract(GREET_CONTRACT_ADDRESS, GREET_ABI, provider);
+      try {
+        const gm = await contract.getGmCount(userAddress);
+        const gn = await contract.getGnCount(userAddress);
+        const li = document.createElement('li');
+        li.textContent = `${userAddress.slice(0, 6)}...${userAddress.slice(-4)} — ${gm} GM / ${gn} GN`;
+        list.appendChild(li);
+      } catch (err) {
+        console.error("Error loading gm/gn", err);
+      }
+    }
+
+    async function updateTotalLeaderboard() {
+      const list = document.getElementById('total-leaderboard');
+      if (!list || !provider || !userAddress) return;
+      list.innerHTML = '';
+      const petContract = new ethers.Contract(PET_CONTRACT_ADDRESS, PET_ABI, provider);
+      const greetContract = new ethers.Contract(GREET_CONTRACT_ADDRESS, GREET_ABI, provider);
+      const flipContract = new ethers.Contract(FLIP_CONTRACT_ADDRESS, FLIP_ABI, provider);
+      try {
+        const [pets, gm, gn, flips] = await Promise.all([
+          petContract.getMyPets(userAddress),
+          greetContract.getGmCount(userAddress),
+          greetContract.getGnCount(userAddress),
+          flipContract.getMyFlips(userAddress)
+        ]);
+        const total = pets.toNumber() + gm.toNumber() + gn.toNumber() + flips.toNumber();
+        const li = document.createElement('li');
+        li.textContent = `${userAddress.slice(0, 6)}...${userAddress.slice(-4)} — ${total} total TX`;
+        list.appendChild(li);
+      } catch (e) {
+        console.error("Error loading total leaderboard", e);
       }
     }
   </script>
