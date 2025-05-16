@@ -181,21 +181,26 @@
   }
 
   provider = new ethers.providers.Web3Provider(window.ethereum);
-  const network = await provider.getNetwork();
 
-  if (network.chainId !== MONAD_TESTNET_CHAIN_ID) {
-    alert(`You are not connected to ${targetNetworkName}. Please switch to ${targetNetworkName} in your wallet.`);
-    return;
-  }
+  try {
+    await provider.send("eth_requestAccounts", []);
+    const network = await provider.getNetwork();
 
-  await provider.send("eth_requestAccounts", []);
-  signer = provider.getSigner();
-  userAddress = await signer.getAddress();
-  flipContract = new ethers.Contract(FLIP_CONTRACT_ADDRESS, FLIP_ABI, signer);
-  isConnected = true;
-  document.getElementById("connectBtn").innerText = `🟢 ${userAddress.slice(0, 6)}...${userAddress.slice(-4)}`;
-}
+    if (network.chainId !== MONAD_TESTNET_CHAIN_ID) {
+      alert(`You are not connected to ${targetNetworkName}. Please switch to ${targetNetworkName} in your wallet.`);
+      return;
     }
+
+    signer = provider.getSigner();
+    userAddress = await signer.getAddress();
+    flipContract = new ethers.Contract(FLIP_CONTRACT_ADDRESS, FLIP_ABI, signer);
+    isConnected = true;
+    document.getElementById("connectBtn").innerText = `🟢 ${userAddress.slice(0, 6)}...${userAddress.slice(-4)}`;
+  } catch (error) {
+    console.error("Connection error:", error);
+    alert("Wallet connection failed: " + error.message);
+  }
+}
 
     function addXP(amount) {
       userXP += amount;
