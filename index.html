@@ -172,8 +172,14 @@
     }
 
     async function connect() {
-      const MONAD_TESTNET_CHAIN_ID = 10143; // decimal chain ID
+      const MONAD_TESTNET_CHAIN_ID = 10143;
+      const MONAD_CHAIN_ID_HEX = '0x278f'; // 10143 in hex
       const targetNetworkName = "Monad Testnet";
+
+      if (!window.ethereum) {
+        alert("MetaMask is not installed");
+        return;
+      }
 
       provider = new ethers.providers.Web3Provider(window.ethereum);
       const network = await provider.getNetwork();
@@ -183,19 +189,16 @@
         try {
           await window.ethereum.request({
             method: 'wallet_switchEthereumChain',
-            params: [{ chainId: '0x278f' }] // 10143 in hex
+            params: [{ chainId: MONAD_CHAIN_ID_HEX }]
           });
-          // Ağ değiştikten sonra sayfayı yeniden yükle
-          window.location.reload();
+          // Ağ değiştikten sonra tekrar connect fonksiyonunu çağır
+          return connect();
         } catch (switchError) {
           alert(`Please switch to ${targetNetworkName} manually in your wallet to use this app.`);
           return;
         }
-      
-        }
-      
       }
-      provider = new ethers.providers.Web3Provider(window.ethereum);
+
       await provider.send("eth_requestAccounts", []);
       signer = provider.getSigner();
       userAddress = await signer.getAddress();
