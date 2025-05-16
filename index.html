@@ -173,7 +173,6 @@
 
     async function connect() {
       const MONAD_TESTNET_CHAIN_ID = 10143;
-      const MONAD_CHAIN_ID_HEX = '0x278f'; // 10143 in hex
       const targetNetworkName = "Monad Testnet";
 
       if (!window.ethereum) {
@@ -188,8 +187,6 @@
         alert(`You are not connected to ${targetNetworkName}. Please switch to ${targetNetworkName} in your wallet.`);
         return;
       }
-
-        }
       }
 
       await provider.send("eth_requestAccounts", []);
