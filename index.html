@@ -188,10 +188,9 @@
     return;
   }
 
+  await provider.send("eth_requestAccounts", []);
   
 }
-
-      await provider.send("eth_requestAccounts", []);
       signer = provider.getSigner();
       userAddress = await signer.getAddress();
       flipContract = new ethers.Contract(FLIP_CONTRACT_ADDRESS, FLIP_ABI, signer);
