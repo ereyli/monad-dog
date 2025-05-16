@@ -256,6 +256,55 @@
         alert("Flip tx failed");
       }
     }
+
+    async function petDog() {
+      if (!signer) return alert("Connect wallet first");
+      const dogImage = document.getElementById('dogImage');
+      dogImage.src = `https://placedog.net/400/300?id=${Math.floor(Math.random() * 50) + 1}`;
+      const contract = new ethers.Contract(PET_CONTRACT_ADDRESS, PET_ABI, signer);
+      try {
+        const tx = await contract.pet();
+        await tx.wait();
+        addXP(10);
+        alert("You pet the dog!");
+        updatePetLeaderboard();
+      } catch (e) {
+        console.error(e);
+        alert("Pet tx failed");
+      }
+    }
+
+    async function sayGM() {
+      if (!signer) return alert("Connect wallet first");
+      document.querySelector('button[onclick="sayGM()"] span').textContent = '☀️ GM ✔';
+      const contract = new ethers.Contract(GREET_CONTRACT_ADDRESS, GREET_ABI, signer);
+      try {
+        const tx = await contract.gm();
+        await tx.wait();
+        addXP(5);
+        alert("☀️ You said GM!");
+        updateGmGnLeaderboard();
+      } catch (e) {
+        console.error(e);
+        alert("GM failed");
+      }
+    }
+
+    async function sayGN() {
+      if (!signer) return alert("Connect wallet first");
+      document.querySelector('button[onclick="sayGN()"] span').textContent = '🌙 GN ✔';
+      const contract = new ethers.Contract(GREET_CONTRACT_ADDRESS, GREET_ABI, signer);
+      try {
+        const tx = await contract.gn();
+        await tx.wait();
+        addXP(5);
+        alert("🌙 You said GN!");
+        updateGmGnLeaderboard();
+      } catch (e) {
+        console.error(e);
+        alert("GN failed");
+      }
+    }
   </script>
 </body>
 </html>
