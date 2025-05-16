@@ -188,12 +188,7 @@
     return;
   }
 
-  await provider.send("eth_requestAccounts", []);
-  signer = provider.getSigner();
-  userAddress = await signer.getAddress();
-  flipContract = new ethers.Contract(FLIP_CONTRACT_ADDRESS, FLIP_ABI, signer);
-  isConnected = true;
-  document.getElementById("connectBtn").innerText = `🟢 ${userAddress.slice(0, 6)}...${userAddress.slice(-4)}`;
+  
 }
 
       await provider.send("eth_requestAccounts", []);
@@ -286,5 +281,10 @@
       }
     }
   </script>
+<script>
+  window.addEventListener('DOMContentLoaded', () => {
+    document.getElementById("connectBtn").onclick = handleWalletConnection;
+  });
+</script>
 </body>
 </html>
