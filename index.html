@@ -86,6 +86,85 @@
       animation: fadeIn 0.5s ease;
     }
     
+    .leaderboard-section {
+      background: rgba(44, 0, 105, 0.4);
+      border-radius: 16px;
+      padding: 30px;
+      margin-top: 30px;
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+      backdrop-filter: blur(5px);
+      animation: fadeIn 0.5s ease;
+    }
+    
+    .leaderboard-title {
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 20px;
+      text-align: center;
+      color: #fff;
+      text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+    
+    .leaderboard-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 0 auto;
+    }
+    
+    .leaderboard-table th {
+      background: rgba(162, 89, 255, 0.3);
+      color: #fff;
+      padding: 12px;
+      font-weight: 600;
+      text-align: left;
+    }
+    
+    .leaderboard-table td {
+      padding: 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .leaderboard-table tr:last-child td {
+      border-bottom: none;
+    }
+    
+    .leaderboard-table tr {
+      transition: all 0.3s ease;
+    }
+    
+    .leaderboard-table tr:hover {
+      background: rgba(162, 89, 255, 0.15);
+    }
+    
+    .rank {
+      font-weight: bold;
+      text-align: center;
+      width: 60px;
+    }
+    
+    .tx-count {
+      font-weight: bold;
+      text-align: center;
+      width: 120px;
+    }
+    
+    .wallet-address {
+      font-family: monospace;
+      letter-spacing: 1px;
+    }
+    
+    .badge {
+      background: linear-gradient(135deg, #FFD700, #FFA500);
+      color: #000;
+      padding: 4px 8px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: bold;
+      display: inline-block;
+      margin-left: 10px;
+      text-shadow: none;
+    }
+    
     @keyframes fadeIn {
       from { opacity: 0; transform: translateY(10px); }
       to { opacity: 1; transform: translateY(0); }
@@ -312,6 +391,7 @@
       <div class="tab active" onclick="showTab(event, 'pet-tab')">🐶 Pet The Dog</div>
       <div class="tab" onclick="showTab(event, 'gmgn-tab')">🌅 GM / GN</div>
       <div class="tab" onclick="showTab(event, 'flip-tab')">🪙 Flip Coin</div>
+      <div class="tab" onclick="showTab(event, 'leaderboard-tab')">🏆 Leaderboard</div>
     </div>
 
     <div id="pet-tab" class="tab-content active">
@@ -337,6 +417,28 @@
       <button onclick="flipMonad()"><span class="button-icon">🎲</span> Flip Coin</button>
       <div class="info" id="flipResult">Flip result will appear here</div>
       <div id="flipStatus" class="transaction-status status-pending">Transaction in progress...</div>
+    </div>
+    
+    <div id="leaderboard-tab" class="tab-content">
+      <h1>🏆 Monad Activity Leaderboard</h1>
+      <p>Top users by number of transactions on Monad Testnet</p>
+      
+      <div class="leaderboard-table-container">
+        <table class="leaderboard-table">
+          <thead>
+            <tr>
+              <th class="rank">#</th>
+              <th class="wallet-address">Wallet</th>
+              <th class="tx-count">Transactions</th>
+            </tr>
+          </thead>
+          <tbody id="leaderboardBody">
+            <!-- Leaderboard data will be populated here -->
+          </tbody>
+        </table>
+      </div>
+      
+      <button onclick="refreshLeaderboard()" style="margin-top: 30px;"><span class="button-icon">🔄</span> Refresh Leaderboard</button>
     </div>
   </div>
 
@@ -442,6 +544,9 @@
         // Log gas price for debugging
         const gasPrice = await provider.getGasPrice();
         console.log("Current gas price:", ethers.utils.formatUnits(gasPrice, "gwei"), "gwei");
+        
+        // Check if user is on the leaderboard and highlight their entry
+        highlightUserOnLeaderboard();
         
         // Show successful connection
         console.log("Wallet connected successfully!");
@@ -709,9 +814,106 @@
       }
     }
 
+    // Sample leaderboard data - Replace with actual data in production
+    const leaderboardData = [
+      { rank: 1, address: "0x742e791fe67e08c5fc9e1978efa8b8d881e426da", txCount: 278, badge: "Early Adopter" },
+      { rank: 2, address: "0x934a2b0b5f709a0d59845beddc3e698b9ad9621c", txCount: 203 },
+      { rank: 3, address: "0x1fa369d46516e4e0150b48b5b0f4880d3f8f257a", txCount: 186, badge: "VIP" },
+      { rank: 4, address: "0x6b78e84a68bf1df348542d8fd2b9bd1a7ce2b954", txCount: 149 },
+      { rank: 5, address: "0x8392f8fe8fe2535d5764f693a146b01acfd29824", txCount: 134 },
+      { rank: 6, address: "0xc54abf65c24a48e94f43609f5d4e65416853f3ac", txCount: 112 },
+      { rank: 7, address: "0x3a1d9e24bd7aea22a99177a3c28e3fe71f4e6b1e", txCount: 98, badge: "Builder" },
+      { rank: 8, address: "0x925f1b78d5ccf2e4b652dc9c4c748195f3d9bf4e", txCount: 87 },
+      { rank: 9, address: "0x2d3856a85a7a6eb8d7932f48d3fd738a83f6bc12", txCount: 76 },
+      { rank: 10, address: "0xf432b9d3fe8cfd8d8fcf347841a27edaef6b37d1", txCount: 63 }
+    ];
+    
+    function maskAddress(address) {
+      if (!address) return "";
+      return address.substring(0, 6) + "..." + address.substring(address.length - 4);
+    }
+    
+    function populateLeaderboard() {
+      const tbody = document.getElementById("leaderboardBody");
+      tbody.innerHTML = "";
+      
+      leaderboardData.forEach(item => {
+        const row = document.createElement("tr");
+        
+        // Rank cell
+        const rankCell = document.createElement("td");
+        rankCell.className = "rank";
+        rankCell.textContent = "#" + item.rank;
+        
+        // Address cell
+        const addressCell = document.createElement("td");
+        addressCell.className = "wallet-address";
+        addressCell.textContent = maskAddress(item.address);
+        
+        // Add badge if exists
+        if (item.badge) {
+          const badge = document.createElement("span");
+          badge.className = "badge";
+          badge.textContent = item.badge;
+          addressCell.appendChild(badge);
+        }
+        
+        // TX count cell
+        const txCell = document.createElement("td");
+        txCell.className = "tx-count";
+        txCell.textContent = item.txCount;
+        
+        // Append all cells to row
+        row.appendChild(rankCell);
+        row.appendChild(addressCell);
+        row.appendChild(txCell);
+        
+        // Highlight user's address if connected
+        if (isConnected && userAddress && item.address.toLowerCase() === userAddress.toLowerCase()) {
+          row.style.background = "rgba(162, 89, 255, 0.3)";
+          row.style.fontWeight = "bold";
+        }
+        
+        // Add row to table
+        tbody.appendChild(row);
+      });
+    }
+    
+    function refreshLeaderboard() {
+      // In a real implementation, this would fetch updated data from backend
+      // For now, we'll just re-render the existing data with a loading effect
+      document.getElementById("leaderboardBody").innerHTML = `
+        <tr>
+          <td colspan="3" style="text-align: center; padding: 30px;">
+            Loading leaderboard data...
+          </td>
+        </tr>
+      `;
+      
+      setTimeout(() => {
+        populateLeaderboard();
+        // Check if user is on leaderboard
+        highlightUserOnLeaderboard();
+      }, 1000);
+    }
+    
+    function highlightUserOnLeaderboard() {
+      if (!isConnected || !userAddress) return;
+      
+      const rows = document.querySelectorAll("#leaderboardBody tr");
+      rows.forEach(row => {
+        const addressCell = row.querySelector(".wallet-address");
+        if (addressCell && addressCell.textContent.includes(userAddress.substring(0, 4))) {
+          row.style.background = "rgba(162, 89, 255, 0.3)";
+          row.style.fontWeight = "bold";
+        }
+      });
+    }
+
     // Initialize when DOM is loaded
     window.addEventListener('DOMContentLoaded', () => {
       document.getElementById("connectBtn").onclick = handleWalletConnection;
+      populateLeaderboard();
     });
   </script>
 </body>
