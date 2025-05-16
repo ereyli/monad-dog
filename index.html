@@ -3,84 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>Monad Fun Page</title>
-  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js">    async function flipMonad() {
-      if (!signer) return alert("Connect wallet first");
-      const coin = document.getElementById("coin");
-      let spin = 0;
-      document.getElementById("flipResult").innerText = "Flipping...";
-      const spinning = setInterval(() => {
-        spin += 36;
-        coin.style.transform = `rotateY(${spin}deg)`;
-      }, 100);
-      try {
-        const tx = await flipContract.flip();
-        await tx.wait();
-        clearInterval(spinning);
-        const result = Math.random() < 0.5 ? "Heads" : "Tails";
-        coin.style.transform = `rotateY(${result === "Heads" ? 0 : 180}deg)`;
-        document.getElementById("flipResult").innerText = `✅ Flip result: ${result}`;
-        addXP(3);
-        updateFlipLeaderboard();
-        updateTotalLeaderboard(userAddress);
-      } catch (e) {
-        clearInterval(spinning);
-        console.error(e);
-        document.getElementById("flipResult").innerText = "❌ Flip failed";
-      }
-    }
-
-    async function petDog() {
-      if (!signer) return alert("Connect wallet first");
-      const dogImage = document.getElementById('dogImage');
-      dogImage.src = `https://placedog.net/400/300?id=${Math.floor(Math.random() * 50) + 1}`;
-      const contract = new ethers.Contract(PET_CONTRACT_ADDRESS, PET_ABI, signer);
-      try {
-        const tx = await contract.pet();
-        await tx.wait();
-        addXP(10);
-        alert("You pet the dog!");
-        updatePetLeaderboard();
-        updateTotalLeaderboard(userAddress);
-      } catch (e) {
-        console.error(e);
-        alert("Pet tx failed");
-      }
-    }
-
-    async function sayGM() {
-      if (!signer) return alert("Connect wallet first");
-      document.querySelector('button[onclick="sayGM()"] span').textContent = '☀️ GM ✔';
-      const contract = new ethers.Contract(GREET_CONTRACT_ADDRESS, GREET_ABI, signer);
-      try {
-        const tx = await contract.gm();
-        await tx.wait();
-        addXP(5);
-        alert("☀️ You said GM!");
-        updateGmGnLeaderboard();
-        updateTotalLeaderboard(userAddress);
-      } catch (e) {
-        console.error(e);
-        alert("GM failed");
-      }
-    }
-
-    async function sayGN() {
-      if (!signer) return alert("Connect wallet first");
-      document.querySelector('button[onclick="sayGN()"] span').textContent = '🌙 GN ✔';
-      const contract = new ethers.Contract(GREET_CONTRACT_ADDRESS, GREET_ABI, signer);
-      try {
-        const tx = await contract.gn();
-        await tx.wait();
-        addXP(5);
-        alert("🌙 You said GN!");
-        updateGmGnLeaderboard();
-        updateTotalLeaderboard(userAddress);
-      } catch (e) {
-        console.error(e);
-        alert("GN failed");
-      }
-    }
-  </script>
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
   <style>
     body {
       font-family: sans-serif;
@@ -130,22 +53,6 @@
       font-size: 18px;
       color: #eee;
     }
-    .leaderboard {
-      margin-top: 50px;
-      background: rgba(255, 255, 255, 0.1);
-      padding: 20px;
-      border-radius: 12px;
-    }
-    .leaderboard h2 {
-      margin-bottom: 10px;
-    }
-    .leaderboard ol {
-      list-style: none;
-      padding: 0;
-    }
-    .leaderboard li {
-      margin: 6px 0;
-    }
     .xp-box {
       position: absolute;
       top: 2px;
@@ -176,20 +83,12 @@
     <h1>🐶 Pet The Dog</h1>
     <img id="dogImage" src="https://placedog.net/400/300?id=7" alt="Cute dog" style="max-width:300px; border-radius:12px; box-shadow:0 0 10px rgba(0,0,0,0.5);"><br>
     <button onclick="petDog()">Pet 🐕</button>
-    <div class="leaderboard">
-      <h2>🐶 Pet Leaderboard</h2>
-      <ol id="pet-leaderboard"></ol>
-    </div>
   </div>
 
   <div id="gmgn-tab" class="tab-content">
     <h1>🌅 GM / GN</h1>
     <button onclick="sayGM()"><span>☀️ GM</span></button>
     <button onclick="sayGN()"><span>🌙 GN</span></button>
-    <div class="leaderboard">
-      <h2>🌅 GM/GN Leaderboard</h2>
-      <ol id="gmgn-leaderboard"></ol>
-    </div>
   </div>
 
   <div id="flip-tab" class="tab-content">
@@ -197,38 +96,16 @@
     <div id="coin" style="font-size: 48px; margin: 20px;">🪙</div>
     <button onclick="flipMonad()">Flip Coin</button>
     <div class="info" id="flipResult">Flip result: -</div>
-    <div class="leaderboard">
-      <h2>🪙 Flip Leaderboard</h2>
-      <ol id="flip-leaderboard"></ol>
-    </div>
-  </div>
-
-  <div class="leaderboard">
-    <h2>🔥 Total Leaderboard</h2>
-    <ol id="total-leaderboard"></ol>
   </div>
 
   <script>
     const FLIP_CONTRACT_ADDRESS = "0xc5b2280d1e2f155f9a2be2af7e78190658874106";
     const GREET_CONTRACT_ADDRESS = "0xbc8b78f3e2348d4b5e0390fe700ce54b59931da4";
-
-    const FLIP_ABI = [
-      "function flip() public",
-      "function getMyFlips(address) public view returns (uint256)"
-    ];
-
-    const GREET_ABI = [
-      "function gm() public",
-      "function gn() public",
-      "function getGmCount(address) public view returns (uint256)",
-      "function getGnCount(address) public view returns (uint256)"
-    ];
-
     const PET_CONTRACT_ADDRESS = "0xc53abe4c593b9440407f8ac1b346f3f999e6d8ed";
-    const PET_ABI = [
-      "function pet() public",
-      "function getMyPets(address) public view returns (uint256)"
-    ];
+
+    const FLIP_ABI = ["function flip() public"];
+    const GREET_ABI = ["function gm() public", "function gn() public"];
+    const PET_ABI = ["function pet() public"];
 
     let provider, signer, userAddress, flipContract;
     let userXP = 0;
@@ -258,10 +135,6 @@
       flipContract = new ethers.Contract(FLIP_CONTRACT_ADDRESS, FLIP_ABI, signer);
       isConnected = true;
       document.getElementById("connectBtn").innerText = `🟢 ${userAddress.slice(0, 6)}...${userAddress.slice(-4)}`;
-      updateFlipLeaderboard();
-      updatePetLeaderboard();
-      updateGmGnLeaderboard();
-      updateTotalLeaderboard(userAddress);
     }
 
     function addXP(amount) {
@@ -276,36 +149,73 @@
       document.getElementById(id).classList.add('active');
     }
 
-    const totalTxMap = new Map();
-
-    async function updateTotalLeaderboard(address) {
-      if (!provider || !address) return;
-
-      const petContract = new ethers.Contract(PET_CONTRACT_ADDRESS, PET_ABI, provider);
-      const greetContract = new ethers.Contract(GREET_CONTRACT_ADDRESS, GREET_ABI, provider);
-      const flipContract = new ethers.Contract(FLIP_CONTRACT_ADDRESS, FLIP_ABI, provider);
-
+    async function flipMonad() {
+      if (!signer) return alert("Connect wallet first");
+      const coin = document.getElementById("coin");
+      let spin = 0;
+      document.getElementById("flipResult").innerText = "Flipping...";
+      const spinning = setInterval(() => {
+        spin += 36;
+        coin.style.transform = `rotateY(${spin}deg)`;
+      }, 100);
       try {
-        const [pets, gm, gn, flips] = await Promise.all([
-          petContract.getMyPets(address),
-          greetContract.getGmCount(address),
-          greetContract.getGnCount(address),
-          flipContract.getMyFlips(address)
-        ]);
-
-        const total = pets.toNumber() + gm.toNumber() + gn.toNumber() + flips.toNumber();
-        totalTxMap.set(address, total);
-
-        const list = document.getElementById('total-leaderboard');
-        list.innerHTML = '';
-
-        for (const [addr, txs] of totalTxMap.entries()) {
-          const li = document.createElement('li');
-          li.textContent = `${addr.slice(0, 6)}...${addr.slice(-4)} — ${txs} total TX`;
-          list.appendChild(li);
-        }
+        const tx = await flipContract.flip();
+        await tx.wait();
+        clearInterval(spinning);
+        const result = Math.random() < 0.5 ? "Heads" : "Tails";
+        coin.style.transform = `rotateY(${result === "Heads" ? 0 : 180}deg)`;
+        document.getElementById("flipResult").innerText = `✅ Flip result: ${result}`;
+        addXP(3);
       } catch (e) {
-        console.error("Error loading total leaderboard", e);
+        clearInterval(spinning);
+        console.error(e);
+        document.getElementById("flipResult").innerText = "❌ Flip failed";
+      }
+    }
+
+    async function petDog() {
+      if (!signer) return alert("Connect wallet first");
+      const dogImage = document.getElementById('dogImage');
+      dogImage.src = `https://placedog.net/400/300?id=${Math.floor(Math.random() * 50) + 1}`;
+      const contract = new ethers.Contract(PET_CONTRACT_ADDRESS, PET_ABI, signer);
+      try {
+        const tx = await contract.pet();
+        await tx.wait();
+        addXP(10);
+        alert("You pet the dog!");
+      } catch (e) {
+        console.error(e);
+        alert("Pet tx failed");
+      }
+    }
+
+    async function sayGM() {
+      if (!signer) return alert("Connect wallet first");
+      document.querySelector('button[onclick="sayGM()"] span').textContent = '☀️ GM ✔';
+      const contract = new ethers.Contract(GREET_CONTRACT_ADDRESS, GREET_ABI, signer);
+      try {
+        const tx = await contract.gm();
+        await tx.wait();
+        addXP(5);
+        alert("☀️ You said GM!");
+      } catch (e) {
+        console.error(e);
+        alert("GM failed");
+      }
+    }
+
+    async function sayGN() {
+      if (!signer) return alert("Connect wallet first");
+      document.querySelector('button[onclick="sayGN()"] span').textContent = '🌙 GN ✔';
+      const contract = new ethers.Contract(GREET_CONTRACT_ADDRESS, GREET_ABI, signer);
+      try {
+        const tx = await contract.gn();
+        await tx.wait();
+        addXP(5);
+        alert("🌙 You said GN!");
+      } catch (e) {
+        console.error(e);
+        alert("GN failed");
       }
     }
   </script>
