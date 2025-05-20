@@ -488,24 +488,44 @@
       await connect();
     }
 
-    async function connect() {
-      const MONAD_TESTNET_CHAIN_ID = 10143;
-      const targetNetworkName = "Monad Testnet";
-
-      window.addEventListener("DOMContentLoaded", async () => {
-  sdk.actions.ready();
+   async function connect() {
+  const MONAD_TESTNET_CHAIN_ID = 10143;
+  const targetNetworkName = "Monad Testnet";
 
   try {
-    const farcasterProvider = sdk.wallet.getEthereumProvider();
-    if (farcasterProvider) {
-      window.farcasterProvider = farcasterProvider;
-      console.log("✅ Farcaster provider is ready.");
-    } else {
-      console.warn("❌ Farcaster provider not found.");
+    // Use Farcaster provider if available
+    const provider = window.farcasterProvider
+      ? new ethers.providers.Web3Provider(window.farcasterProvider)
+      : new ethers.providers.Web3Provider(window.ethereum);
+
+    await provider.send("eth_requestAccounts", []);
+
+    const network = await provider.getNetwork();
+    console.log("Connected to network:", network);
+
+    if (network.chainId !== MONAD_TESTNET_CHAIN_ID) {
+      try {
+        await window.ethereum.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: '0x' + MONAD_TESTNET_CHAIN_ID.toString(16) }],
+        });
+      } catch (switchError) {
+        console.error("Network switch error:", switchError);
+        // Handle adding the network if it doesn't exist
+      }
     }
-  } catch (e) {
-    console.warn("⚠️ Farcaster error:", e);
+
+    const signer = provider.getSigner();
+    const userAddress = await signer.getAddress();
+    console.log("Connected to address:", userAddress);
+
+    // Proceed with your application logic
+  } catch (error) {
+    console.error("Connection error:", error);
+    alert("Wallet connection failed: " + (error.message || "Unknown error"));
   }
+}
+
 });
 
 
