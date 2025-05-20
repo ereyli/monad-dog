@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+  <!-- Farcaster Mini App Meta -->
   <meta name="fc:frame" content='{
   "version": "next",
   "imageUrl": "https://monad-dog.vercel.app/icon.png",
@@ -17,6 +18,7 @@
     }
   }
 }' />
+
 
   <title>Monad Test App</title>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -456,499 +458,487 @@
       <button onclick="refreshLeaderboard()" style="margin-top: 30px;"><span class="button-icon">🔄</span> Refresh Leaderboard</button>
     </div>
   </div>
-  
-<script type="module">
-  import { sdk } from 'https://esm.sh/@farcaster/frame-sdk';
-  
-  try {
-    // Global erişim için SDK'yı ekle
-    window.sdk = sdk;
-    
-    // Splash ekranını kaldır
-    await sdk.actions.ready();
-    console.log("Farcaster SDK ready");
-    
-    // Farcaster cüzdanına bağlantı
-    // DOMContentLoaded'dan sonra çalışacak şekilde ayarla
-    window.farcasterSDKLoaded = true;
-    
-    // Sayfa yüklendiyse ve connect fonksiyonu hazırsa bağlan
-    if (document.readyState === 'complete' && typeof window.connectFarcasterWallet === 'function') {
-      console.log("Page already loaded, connecting to Farcaster wallet");
-      window.connectFarcasterWallet();
+
+  <script>
+    const FLIP_CONTRACT_ADDRESS = "0xc5b2280d1e2f155f9a2be2af7e78190658874106";
+    const GREET_CONTRACT_ADDRESS = "0xbc8b78f3e2348d4b5e0390fe700ce54b59931da4";
+    const PET_CONTRACT_ADDRESS = "0xc53abe4c593b9440407f8ac1b346f3f999e6d8ed";
+
+    const FLIP_ABI = ["function flip() public"];
+    const GREET_ABI = ["function gm() public", "function gn() public"];
+    const PET_ABI = ["function pet() public"];
+
+    let provider, signer, userAddress, flipContract;
+    let userXP = 0;
+    let isConnected = false;
+
+    function disconnect() {
+      provider = null;
+      signer = null;
+      userAddress = null;
+      isConnected = false;
+      document.getElementById("connectBtn").innerHTML = '<span class="button-icon">🔌</span> Connect Wallet';
     }
-  } catch (err) {
-    console.error("Farcaster SDK error:", err);
-  }
-</script>
 
-<script>
-  const FLIP_CONTRACT_ADDRESS = "0xc5b2280d1e2f155f9a2be2af7e78190658874106";
-  const GREET_CONTRACT_ADDRESS = "0xbc8b78f3e2348d4b5e0390fe700ce54b59931da4";
-  const PET_CONTRACT_ADDRESS = "0xc53abe4c593b9440407f8ac1b346f3f999e6d8ed";
-
-  const FLIP_ABI = ["function flip() public"];
-  const GREET_ABI = ["function gm() public", "function gn() public"];
-  const PET_ABI = ["function pet() public"];
-
-  let provider, signer, userAddress, flipContract;
-  let userXP = 0;
-  let isConnected = false;
-  let isFarcasterWallet = false;
-
-  function disconnect() {
-    provider = null;
-    signer = null;
-    userAddress = null;
-    isConnected = false;
-    isFarcasterWallet = false;
-    document.getElementById("connectBtn").innerHTML = '<span class="button-icon">🔌</span> Connect Wallet';
-  }
-
-  async function handleWalletConnection() {
-    if (isConnected) {
-      disconnect();
-      return;
-    }
-    
-    // Farcaster ortamında otomatik cüzdan tespiti
-    if (window.sdk && window.sdk.wallet && window.sdk.wallet.ethProvider) {
-      console.log("Using Farcaster wallet");
-      await connectFarcasterWallet();
-      return;
-    }
-    
-    // Normal web tarayıcısında MetaMask kontrolü
-    if (window.ethereum) {
-      console.log("Using MetaMask");
+    async function handleWalletConnection() {
+      if (isConnected) {
+        disconnect();
+        return;
+      }
       await connect();
-      return;
     }
-    
-    // Hiçbir cüzdan bulunamadı
-    console.log("No wallet found");
-    alert("No wallet found. Please install MetaMask or use Farcaster app.");
-  }
-  
-  // Farcaster cüzdanına bağlanma - window.connectFarcasterWallet olarak global erişime açık
-  window.connectFarcasterWallet = async function() {
-    try {
-      // SDK ve wallet varlığını kontrol et
-      if (!window.sdk || !window.sdk.wallet || !window.sdk.wallet.ethProvider) {
-        console.error("Farcaster wallet not available");
-        return false;
+
+    async function connect() {
+      const MONAD_TESTNET_CHAIN_ID = 10143;
+      const targetNetworkName = "Monad Testnet";
+
+      if (!window.ethereum) {
+        alert("MetaMask is not installed");
+        return;
       }
-      
-      console.log("Connecting to Farcaster wallet...");
-      
-      // Farcaster cüzdanını kullan
-      provider = new ethers.providers.Web3Provider(window.sdk.wallet.ethProvider);
-      
-      // Signer ve adres bilgilerini al
-      signer = provider.getSigner();
-      userAddress = await signer.getAddress();
-      console.log("Connected to Farcaster wallet address:", userAddress);
-      
-      // Sözleşmeleri tanımla
-      flipContract = new ethers.Contract(FLIP_CONTRACT_ADDRESS, FLIP_ABI, signer);
-      
-      // Düğme güncelleme
-      isConnected = true;
-      isFarcasterWallet = true;
-      document.getElementById("connectBtn").innerHTML = `<span class="button-icon">🟢</span> ${userAddress.slice(0, 6)}...${userAddress.slice(-4)}`;
-      
-      // Farcaster kullanıcı bilgilerini al ve göster
-      if (window.sdk && window.sdk.context && window.sdk.context.user) {
-        console.log("Farcaster user:", window.sdk.context.user);
+
+      try {
+        // Request account access
+        provider = new ethers.providers.Web3Provider(window.ethereum);
+        await provider.send("eth_requestAccounts", []);
         
-        if (window.sdk.context.user.username) {
-          document.getElementById("connectBtn").innerHTML = `<span class="button-icon">🟢</span> @${window.sdk.context.user.username}`;
-        }
+        // Check network
+        const network = await provider.getNetwork();
+        console.log("Connected to network:", network);
         
-        if (window.sdk.context.user.fid) {
-          userXP = window.sdk.context.user.fid;
-          document.getElementById("xpCounter").innerText = userXP;
-        }
-      }
-      
-      highlightUserOnLeaderboard();
-      return true;
-    } catch (error) {
-      console.error("Farcaster wallet connection error:", error);
-      return false;
-    }
-  };
-
-  // Normal cüzdana bağlanma (MetaMask)
-  async function connect() {
-    const MONAD_TESTNET_CHAIN_ID = 10143;
-
-    if (!window.ethereum) {
-      alert("MetaMask is not installed");
-      return;
-    }
-
-    try {
-      provider = new ethers.providers.Web3Provider(window.ethereum);
-      await provider.send("eth_requestAccounts", []);
-      
-      const network = await provider.getNetwork();
-      
-      if (network.chainId !== MONAD_TESTNET_CHAIN_ID) {
-        try {
-          await window.ethereum.request({
-            method: 'wallet_switchEthereumChain',
-            params: [{ chainId: '0x' + MONAD_TESTNET_CHAIN_ID.toString(16) }],
-          });
-          
-          provider = new ethers.providers.Web3Provider(window.ethereum);
-        } catch (switchError) {
+        if (network.chainId !== MONAD_TESTNET_CHAIN_ID) {
           try {
+            // Try to switch network
             await window.ethereum.request({
-              method: 'wallet_addEthereumChain',
-              params: [{
-                chainId: '0x' + MONAD_TESTNET_CHAIN_ID.toString(16),
-                chainName: 'Monad Testnet',
-                nativeCurrency: {
-                  name: 'Monad',
-                  symbol: 'MONAD',
-                  decimals: 18
-                },
-                rpcUrls: ['https://rpc.monad.xyz/monad-testnet'],
-                blockExplorerUrls: ['https://explorer.monad.xyz/']
-              }]
+              method: 'wallet_switchEthereumChain',
+              params: [{ chainId: '0x' + MONAD_TESTNET_CHAIN_ID.toString(16) }],
             });
             
+            // Refresh provider after network switch
             provider = new ethers.providers.Web3Provider(window.ethereum);
-          } catch (error) {
-            alert(`Please manually switch to Monad Testnet in your wallet.`);
-            return;
+          } catch (switchError) {
+            console.error("Network switch error:", switchError);
+            
+            // Try to add the network if it doesn't exist
+            try {
+              await window.ethereum.request({
+                method: 'wallet_addEthereumChain',
+                params: [{
+                  chainId: '0x' + MONAD_TESTNET_CHAIN_ID.toString(16),
+                  chainName: 'Monad Testnet',
+                  nativeCurrency: {
+                    name: 'Monad',
+                    symbol: 'MONAD',
+                    decimals: 18
+                  },
+                  rpcUrls: ['https://rpc.monad.xyz/monad-testnet'],
+                  blockExplorerUrls: ['https://explorer.monad.xyz/']
+                }]
+              });
+              
+              // Refresh provider after network add
+              provider = new ethers.providers.Web3Provider(window.ethereum);
+            } catch (addError) {
+              console.error("Add network error:", addError);
+              alert(`Please manually switch to ${targetNetworkName} in your wallet.`);
+              return;
+            }
           }
         }
+        
+        // Get signer and address
+        signer = provider.getSigner();
+        userAddress = await signer.getAddress();
+        console.log("Connected to address:", userAddress);
+        
+        // Initialize contracts with this signer
+        flipContract = new ethers.Contract(FLIP_CONTRACT_ADDRESS, FLIP_ABI, signer);
+        
+        // Update button and status
+        isConnected = true;
+        document.getElementById("connectBtn").innerHTML = `<span class="button-icon">🟢</span> ${userAddress.slice(0, 6)}...${userAddress.slice(-4)}`;
+        
+        // Log gas price for debugging
+        const gasPrice = await provider.getGasPrice();
+        console.log("Current gas price:", ethers.utils.formatUnits(gasPrice, "gwei"), "gwei");
+        
+        // Check if user is on the leaderboard and highlight their entry
+        highlightUserOnLeaderboard();
+        
+        // Show successful connection
+        console.log("Wallet connected successfully!");
+      } catch (error) {
+        console.error("Connection error:", error);
+        alert("Wallet connection failed: " + (error.message || "Unknown error"));
+      }
+    }
+
+    function addXP(amount) {
+      userXP += amount;
+      document.getElementById("xpCounter").innerText = userXP;
+    }
+
+    function showTab(event, id) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      event.target.classList.add('active');
+      document.getElementById(id).classList.add('active');
+    }
+
+    async function flipMonad() {
+      if (!isConnected) {
+        alert("Connect wallet first");
+        return;
       }
       
-      signer = provider.getSigner();
-      userAddress = await signer.getAddress();
+      const coin = document.getElementById("coin");
+      const statusEl = document.getElementById("flipStatus");
       
-      flipContract = new ethers.Contract(FLIP_CONTRACT_ADDRESS, FLIP_ABI, signer);
+      let spin = 0;
+      document.getElementById("flipResult").innerText = "Flipping...";
       
-      isConnected = true;
-      document.getElementById("connectBtn").innerHTML = `<span class="button-icon">🟢</span> ${userAddress.slice(0, 6)}...${userAddress.slice(-4)}`;
+      // Show pending status
+      statusEl.textContent = "Transaction pending...";
+      statusEl.className = "transaction-status status-pending visible";
       
-      highlightUserOnLeaderboard();
-    } catch (error) {
-      console.error("Connection error:", error);
-      alert("Wallet connection failed");
+      const spinning = setInterval(() => {
+        spin += 36;
+        coin.style.transform = `rotateY(${spin}deg)`;
+      }, 100);
+      
+      try {
+        // Re-create contract with current signer to ensure it's properly connected
+        const flipContract = new ethers.Contract(FLIP_CONTRACT_ADDRESS, FLIP_ABI, signer);
+        
+        // Set gas limit explicitly
+        const tx = await flipContract.flip({ 
+          gasLimit: 1000000  // Explicitly set higher gas limit
+        });
+        
+        // Show transaction hash
+        console.log("Transaction hash:", tx.hash);
+        statusEl.textContent = `Processing: ${tx.hash.slice(0,10)}...${tx.hash.slice(-6)}`;
+        
+        await tx.wait();
+        clearInterval(spinning);
+        
+        const result = Math.random() < 0.5 ? "Heads" : "Tails";
+        coin.style.transform = `rotateY(${result === "Heads" ? 0 : 180}deg)`;
+        document.getElementById("flipResult").innerText = `✅ Flip result: ${result}`;
+        
+        // Show success status
+        statusEl.textContent = "Transaction successful!";
+        statusEl.className = "transaction-status status-success visible";
+        setTimeout(() => {
+          statusEl.className = "transaction-status";
+        }, 3000);
+        
+        addXP(3);
+      } catch (e) {
+        clearInterval(spinning);
+        console.error("Flip error:", e);
+        document.getElementById("flipResult").innerText = `❌ Flip failed: ${e.message ? e.message.slice(0, 50) : "Unknown error"}`;
+        
+        // Show error status
+        statusEl.textContent = `Error: ${e.message ? e.message.slice(0, 50) : "Unknown error"}`;
+        statusEl.className = "transaction-status status-error visible";
+        setTimeout(() => {
+          statusEl.className = "transaction-status";
+        }, 5000);
+      }
     }
-  }
 
-  function addXP(amount) {
-    userXP += amount;
-    document.getElementById("xpCounter").innerText = userXP;
-  }
-
-  function showTab(event, id) {
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-    event.target.classList.add('active');
-    document.getElementById(id).classList.add('active');
-  }
-
-  async function flipMonad() {
-    if (!isConnected) {
-      alert("Connect wallet first");
-      return;
-    }
-    
-    const coin = document.getElementById("coin");
-    const statusEl = document.getElementById("flipStatus");
-    
-    let spin = 0;
-    document.getElementById("flipResult").innerText = "Flipping...";
-    
-    statusEl.textContent = "Transaction pending...";
-    statusEl.className = "transaction-status status-pending visible";
-    
-    const spinning = setInterval(() => {
-      spin += 36;
-      coin.style.transform = `rotateY(${spin}deg)`;
-    }, 100);
-    
-    try {
-      const flipContract = new ethers.Contract(FLIP_CONTRACT_ADDRESS, FLIP_ABI, signer);
-      
-      const tx = await flipContract.flip({ gasLimit: 1000000 });
-      
-      statusEl.textContent = `Processing: ${tx.hash.slice(0,10)}...${tx.hash.slice(-6)}`;
-      
-      await tx.wait();
-      clearInterval(spinning);
-      
-      const result = Math.random() < 0.5 ? "Heads" : "Tails";
-      coin.style.transform = `rotateY(${result === "Heads" ? 0 : 180}deg)`;
-      document.getElementById("flipResult").innerText = `✅ Flip result: ${result}`;
-      
-      statusEl.textContent = "Transaction successful!";
-      statusEl.className = "transaction-status status-success visible";
-      setTimeout(() => {
-        statusEl.className = "transaction-status";
-      }, 3000);
-      
-      addXP(3);
-    } catch (e) {
-      clearInterval(spinning);
-      document.getElementById("flipResult").innerText = `❌ Flip failed: ${e.message ? e.message.slice(0, 50) : "Error"}`;
-      
-      statusEl.textContent = `Error: ${e.message ? e.message.slice(0, 50) : "Unknown error"}`;
-      statusEl.className = "transaction-status status-error visible";
-      setTimeout(() => {
-        statusEl.className = "transaction-status";
-      }, 5000);
-    }
-  }
-
-  async function petDog() {
-    if (!isConnected) {
-      alert("Connect wallet first");
-      return;
-    }
-    
-    const dogImage = document.getElementById('dogImage');
-    const statusEl = document.getElementById("petStatus");
-    
-    dogImage.src = `https://placedog.net/400/300?id=${Math.floor(Math.random() * 50) + 1}`;
-    
-    statusEl.textContent = "Petting in progress...";
-    statusEl.className = "transaction-status status-pending visible";
-    
-    try {
-      const petContract = new ethers.Contract(PET_CONTRACT_ADDRESS, PET_ABI, signer);
-      
-      const tx = await petContract.pet({ gasLimit: 1000000 });
-      
-      statusEl.textContent = `Processing: ${tx.hash.slice(0,10)}...${tx.hash.slice(-6)}`;
-      
-      await tx.wait();
-      
-      statusEl.textContent = "Dog successfully petted! 🐶";
-      statusEl.className = "transaction-status status-success visible";
-      setTimeout(() => {
-        statusEl.className = "transaction-status";
-      }, 3000);
-      
-      addXP(10);
-    } catch (e) {
-      statusEl.textContent = `Error: ${e.message ? e.message.slice(0, 50) : "Unknown error"}`;
-      statusEl.className = "transaction-status status-error visible";
-      setTimeout(() => {
-        statusEl.className = "transaction-status";
-      }, 5000);
-    }
-  }
-
-  async function sayGM() {
-    if (!isConnected) {
-      alert("Connect wallet first");
-      return;
-    }
-    
-    const statusEl = document.getElementById("greetStatus");
-    const buttonSpan = document.querySelector('button[onclick="sayGM()"] .button-icon');
-    
-    document.querySelector('button[onclick="sayGM()"]').disabled = true;
-    buttonSpan.textContent = "⏳";
-    
-    statusEl.textContent = "Sending GM to the blockchain...";
-    statusEl.className = "transaction-status status-pending visible";
-    
-    try {
-      const greetContract = new ethers.Contract(GREET_CONTRACT_ADDRESS, GREET_ABI, signer);
-      
-      const tx = await greetContract.gm({ gasLimit: 1000000 });
-      
-      statusEl.textContent = `Processing: ${tx.hash.slice(0,10)}...${tx.hash.slice(-6)}`;
-      
-      await tx.wait();
-      
-      buttonSpan.textContent = "✅";
-      setTimeout(() => {
-        buttonSpan.textContent = "☀️";
-        document.querySelector('button[onclick="sayGM()"]').disabled = false;
-      }, 3000);
-      
-      statusEl.textContent = "GM successfully sent to the community!";
-      statusEl.className = "transaction-status status-success visible";
-      setTimeout(() => {
-        statusEl.className = "transaction-status";
-      }, 3000);
-      
-      addXP(5);
-    } catch (e) {
-      buttonSpan.textContent = "❌";
-      setTimeout(() => {
-        buttonSpan.textContent = "☀️";
-        document.querySelector('button[onclick="sayGM()"]').disabled = false;
-      }, 3000);
-      
-      statusEl.textContent = `Error: ${e.message ? e.message.slice(0, 50) : "Unknown error"}`;
-      statusEl.className = "transaction-status status-error visible";
-      setTimeout(() => {
-        statusEl.className = "transaction-status";
-      }, 5000);
-    }
-  }
-
-  async function sayGN() {
-    if (!isConnected) {
-      alert("Connect wallet first");
-      return;
-    }
-    
-    const statusEl = document.getElementById("greetStatus");
-    const buttonSpan = document.querySelector('button[onclick="sayGN()"] .button-icon');
-    
-    document.querySelector('button[onclick="sayGN()"]').disabled = true;
-    buttonSpan.textContent = "⏳";
-    
-    statusEl.textContent = "Sending GN to the blockchain...";
-    statusEl.className = "transaction-status status-pending visible";
-    
-    try {
-      const greetContract = new ethers.Contract(GREET_CONTRACT_ADDRESS, GREET_ABI, signer);
-      
-      const tx = await greetContract.gn({ gasLimit: 1000000 });
-      
-      statusEl.textContent = `Processing: ${tx.hash.slice(0,10)}...${tx.hash.slice(-6)}`;
-      
-      await tx.wait();
-      
-      buttonSpan.textContent = "✅";
-      setTimeout(() => {
-        buttonSpan.textContent = "🌙";
-        document.querySelector('button[onclick="sayGN()"]').disabled = false;
-      }, 3000);
-      
-      statusEl.textContent = "GN successfully sent to the community!";
-      statusEl.className = "transaction-status status-success visible";
-      setTimeout(() => {
-        statusEl.className = "transaction-status";
-      }, 3000);
-      
-      addXP(5);
-    } catch (e) {
-      buttonSpan.textContent = "❌";
-      setTimeout(() => {
-        buttonSpan.textContent = "🌙";
-        document.querySelector('button[onclick="sayGN()"]').disabled = false;
-      }, 3000);
-      
-      statusEl.textContent = `Error: ${e.message ? e.message.slice(0, 50) : "Unknown error"}`;
-      statusEl.className = "transaction-status status-error visible";
-      setTimeout(() => {
-        statusEl.className = "transaction-status";
-      }, 5000);
-    }
-  }
-
-  const leaderboardData = [
-    { rank: 1, address: "0x742e791fe67e08c5fc9e1978efa8b8d881e426da", txCount: 278, badge: "Early Adopter" },
-    { rank: 2, address: "0x934a2b0b5f709a0d59845beddc3e698b9ad9621c", txCount: 203 },
-    { rank: 3, address: "0x1fa369d46516e4e0150b48b5b0f4880d3f8f257a", txCount: 186, badge: "VIP" },
-    { rank: 4, address: "0x6b78e84a68bf1df348542d8fd2b9bd1a7ce2b954", txCount: 149 },
-    { rank: 5, address: "0x8392f8fe8fe2535d5764f693a146b01acfd29824", txCount: 134 },
-    { rank: 6, address: "0xc54abf65c24a48e94f43609f5d4e65416853f3ac", txCount: 112 },
-    { rank: 7, address: "0x3a1d9e24bd7aea22a99177a3c28e3fe71f4e6b1e", txCount: 98, badge: "Builder" },
-    { rank: 8, address: "0x925f1b78d5ccf2e4b652dc9c4c748195f3d9bf4e", txCount: 87 },
-    { rank: 9, address: "0x2d3856a85a7a6eb8d7932f48d3fd738a83f6bc12", txCount: 76 },
-    { rank: 10, address: "0xf432b9d3fe8cfd8d8fcf347841a27edaef6b37d1", txCount: 63 }
-  ];
-  
-  function maskAddress(address) {
-    if (!address) return "";
-    return address.substring(0, 6) + "..." + address.substring(address.length - 4);
-  }
-  
-  function populateLeaderboard() {
-    const tbody = document.getElementById("leaderboardBody");
-    tbody.innerHTML = "";
-    
-    leaderboardData.forEach(item => {
-      const row = document.createElement("tr");
-      
-      const rankCell = document.createElement("td");
-      rankCell.className = "rank";
-      rankCell.textContent = "#" + item.rank;
-      
-      const addressCell = document.createElement("td");
-      addressCell.className = "wallet-address";
-      addressCell.textContent = maskAddress(item.address);
-      
-      if (item.badge) {
-        const badge = document.createElement("span");
-        badge.className = "badge";
-        badge.textContent = item.badge;
-        addressCell.appendChild(badge);
+    async function petDog() {
+      if (!isConnected) {
+        alert("Connect wallet first");
+        return;
       }
       
-      const txCell = document.createElement("td");
-      txCell.className = "tx-count";
-      txCell.textContent = item.txCount;
+      const dogImage = document.getElementById('dogImage');
+      const statusEl = document.getElementById("petStatus");
       
-      row.appendChild(rankCell);
-      row.appendChild(addressCell);
-      row.appendChild(txCell);
+      // Show a new random dog
+      dogImage.src = `https://placedog.net/400/300?id=${Math.floor(Math.random() * 50) + 1}`;
       
-      if (isConnected && userAddress && item.address.toLowerCase() === userAddress.toLowerCase()) {
-        row.style.background = "rgba(162, 89, 255, 0.3)";
-        row.style.fontWeight = "bold";
+      // Show pending status
+      statusEl.textContent = "Petting in progress...";
+      statusEl.className = "transaction-status status-pending visible";
+      
+      try {
+        // Re-create contract with current signer to ensure it's properly connected
+        const petContract = new ethers.Contract(PET_CONTRACT_ADDRESS, PET_ABI, signer);
+        
+        // Set gas limit explicitly
+        const tx = await petContract.pet({ 
+          gasLimit: 1000000  // Explicitly set higher gas limit
+        });
+        
+        // Show transaction hash
+        console.log("Pet transaction hash:", tx.hash);
+        statusEl.textContent = `Processing: ${tx.hash.slice(0,10)}...${tx.hash.slice(-6)}`;
+        
+        await tx.wait();
+        
+        // Show success status
+        statusEl.textContent = "Dog successfully petted! 🐶";
+        statusEl.className = "transaction-status status-success visible";
+        setTimeout(() => {
+          statusEl.className = "transaction-status";
+        }, 3000);
+        
+        addXP(10);
+      } catch (e) {
+        console.error("Pet error:", e);
+        
+        // Show error status
+        statusEl.textContent = `Error: ${e.message ? e.message.slice(0, 50) : "Unknown error"}`;
+        statusEl.className = "transaction-status status-error visible";
+        setTimeout(() => {
+          statusEl.className = "transaction-status";
+        }, 5000);
       }
-      
-      tbody.appendChild(row);
-    });
-  }
-  
-  function refreshLeaderboard() {
-    document.getElementById("leaderboardBody").innerHTML = `
-      <tr>
-        <td colspan="3" style="text-align: center; padding: 30px;">
-          Loading leaderboard data...
-        </td>
-      </tr>
-    `;
-    
-    setTimeout(() => {
-      populateLeaderboard();
-      highlightUserOnLeaderboard();
-    }, 1000);
-  }
-  
-  function highlightUserOnLeaderboard() {
-    if (!isConnected || !userAddress) return;
-    
-    document.querySelectorAll('#leaderboardBody tr').forEach(row => {
-      const addressCell = row.querySelector(".wallet-address");
-      if (addressCell && addressCell.textContent.includes(userAddress.substring(0, 4))) {
-        row.style.background = "rgba(162, 89, 255, 0.3)";
-        row.style.fontWeight = "bold";
-      }
-    });
-  }
+    }
 
-  // Sayfa yüklendiğinde çalışacak kod
-  window.addEventListener('DOMContentLoaded', () => {
-    console.log("DOM loaded, initializing app");
-    document.getElementById("connectBtn").onclick = handleWalletConnection;
-    populateLeaderboard();
+    async function sayGM() {
+      if (!isConnected) {
+        alert("Connect wallet first");
+        return;
+      }
+      
+      const statusEl = document.getElementById("greetStatus");
+      const buttonSpan = document.querySelector('button[onclick="sayGM()"] .button-icon');
+      
+      // Update button appearance
+      document.querySelector('button[onclick="sayGM()"]').disabled = true;
+      buttonSpan.textContent = "⏳";
+      
+      // Show pending status
+      statusEl.textContent = "Sending GM to the blockchain...";
+      statusEl.className = "transaction-status status-pending visible";
+      
+      try {
+        // Re-create contract with current signer to ensure it's properly connected
+        const greetContract = new ethers.Contract(GREET_CONTRACT_ADDRESS, GREET_ABI, signer);
+        
+        // Set gas limit explicitly
+        const tx = await greetContract.gm({ 
+          gasLimit: 1000000  // Explicitly set higher gas limit
+        });
+        
+        // Show transaction hash
+        console.log("GM transaction hash:", tx.hash);
+        statusEl.textContent = `Processing: ${tx.hash.slice(0,10)}...${tx.hash.slice(-6)}`;
+        
+        await tx.wait();
+        
+        // Update button appearance
+        buttonSpan.textContent = "✅";
+        setTimeout(() => {
+          buttonSpan.textContent = "☀️";
+          document.querySelector('button[onclick="sayGM()"]').disabled = false;
+        }, 3000);
+        
+        // Show success status
+        statusEl.textContent = "GM successfully sent to the community!";
+        statusEl.className = "transaction-status status-success visible";
+        setTimeout(() => {
+          statusEl.className = "transaction-status";
+        }, 3000);
+        
+        addXP(5);
+      } catch (e) {
+        // Update button appearance
+        buttonSpan.textContent = "❌";
+        setTimeout(() => {
+          buttonSpan.textContent = "☀️";
+          document.querySelector('button[onclick="sayGM()"]').disabled = false;
+        }, 3000);
+        
+        console.error("GM error:", e);
+        
+        // Show error status
+        statusEl.textContent = `Error: ${e.message ? e.message.slice(0, 50) : "Unknown error"}`;
+        statusEl.className = "transaction-status status-error visible";
+        setTimeout(() => {
+          statusEl.className = "transaction-status";
+        }, 5000);
+      }
+    }
+
+    async function sayGN() {
+      if (!isConnected) {
+        alert("Connect wallet first");
+        return;
+      }
+      
+      const statusEl = document.getElementById("greetStatus");
+      const buttonSpan = document.querySelector('button[onclick="sayGN()"] .button-icon');
+      
+      // Update button appearance
+      document.querySelector('button[onclick="sayGN()"]').disabled = true;
+      buttonSpan.textContent = "⏳";
+      
+      // Show pending status
+      statusEl.textContent = "Sending GN to the blockchain...";
+      statusEl.className = "transaction-status status-pending visible";
+      
+      try {
+        // Re-create contract with current signer to ensure it's properly connected
+        const greetContract = new ethers.Contract(GREET_CONTRACT_ADDRESS, GREET_ABI, signer);
+        
+        // Set gas limit explicitly
+        const tx = await greetContract.gn({ 
+          gasLimit: 1000000  // Explicitly set higher gas limit
+        });
+        
+        // Show transaction hash
+        console.log("GN transaction hash:", tx.hash);
+        statusEl.textContent = `Processing: ${tx.hash.slice(0,10)}...${tx.hash.slice(-6)}`;
+        
+        await tx.wait();
+        
+        // Update button appearance
+        buttonSpan.textContent = "✅";
+        setTimeout(() => {
+          buttonSpan.textContent = "🌙";
+          document.querySelector('button[onclick="sayGN()"]').disabled = false;
+        }, 3000);
+        
+        // Show success status
+        statusEl.textContent = "GN successfully sent to the community!";
+        statusEl.className = "transaction-status status-success visible";
+        setTimeout(() => {
+          statusEl.className = "transaction-status";
+        }, 3000);
+        
+        addXP(5);
+      } catch (e) {
+        // Update button appearance
+        buttonSpan.textContent = "❌";
+        setTimeout(() => {
+          buttonSpan.textContent = "🌙";
+          document.querySelector('button[onclick="sayGN()"]').disabled = false;
+        }, 3000);
+        
+        console.error("GN error:", e);
+        
+        // Show error status
+        statusEl.textContent = `Error: ${e.message ? e.message.slice(0, 50) : "Unknown error"}`;
+        statusEl.className = "transaction-status status-error visible";
+        setTimeout(() => {
+          statusEl.className = "transaction-status";
+        }, 5000);
+      }
+    }
+
+    // Sample leaderboard data - Replace with actual data in production
+    const leaderboardData = [
+      { rank: 1, address: "0x742e791fe67e08c5fc9e1978efa8b8d881e426da", txCount: 278, badge: "Early Adopter" },
+      { rank: 2, address: "0x934a2b0b5f709a0d59845beddc3e698b9ad9621c", txCount: 203 },
+      { rank: 3, address: "0x1fa369d46516e4e0150b48b5b0f4880d3f8f257a", txCount: 186, badge: "VIP" },
+      { rank: 4, address: "0x6b78e84a68bf1df348542d8fd2b9bd1a7ce2b954", txCount: 149 },
+      { rank: 5, address: "0x8392f8fe8fe2535d5764f693a146b01acfd29824", txCount: 134 },
+      { rank: 6, address: "0xc54abf65c24a48e94f43609f5d4e65416853f3ac", txCount: 112 },
+      { rank: 7, address: "0x3a1d9e24bd7aea22a99177a3c28e3fe71f4e6b1e", txCount: 98, badge: "Builder" },
+      { rank: 8, address: "0x925f1b78d5ccf2e4b652dc9c4c748195f3d9bf4e", txCount: 87 },
+      { rank: 9, address: "0x2d3856a85a7a6eb8d7932f48d3fd738a83f6bc12", txCount: 76 },
+      { rank: 10, address: "0xf432b9d3fe8cfd8d8fcf347841a27edaef6b37d1", txCount: 63 }
+    ];
     
-    // Farcaster SDK zaten yüklendiyse ve hazırsa
-    if (window.farcasterSDKLoaded && window.sdk && window.sdk.wallet && window.sdk.wallet.ethProvider) {
-      console.log("Farcaster SDK already loaded, connecting automatically");
-      // Gecikmeli bağlantı
-      setTimeout(() => {
-        if (typeof window.connectFarcasterWallet === 'function') {
-          window.connectFarcasterWallet();
+    function maskAddress(address) {
+      if (!address) return "";
+      return address.substring(0, 6) + "..." + address.substring(address.length - 4);
+    }
+    
+    function populateLeaderboard() {
+      const tbody = document.getElementById("leaderboardBody");
+      tbody.innerHTML = "";
+      
+      leaderboardData.forEach(item => {
+        const row = document.createElement("tr");
+        
+        // Rank cell
+        const rankCell = document.createElement("td");
+        rankCell.className = "rank";
+        rankCell.textContent = "#" + item.rank;
+        
+        // Address cell
+        const addressCell = document.createElement("td");
+        addressCell.className = "wallet-address";
+        addressCell.textContent = maskAddress(item.address);
+        
+        // Add badge if exists
+        if (item.badge) {
+          const badge = document.createElement("span");
+          badge.className = "badge";
+          badge.textContent = item.badge;
+          addressCell.appendChild(badge);
         }
+        
+        // TX count cell
+        const txCell = document.createElement("td");
+        txCell.className = "tx-count";
+        txCell.textContent = item.txCount;
+        
+        // Append all cells to row
+        row.appendChild(rankCell);
+        row.appendChild(addressCell);
+        row.appendChild(txCell);
+        
+        // Highlight user's address if connected
+        if (isConnected && userAddress && item.address.toLowerCase() === userAddress.toLowerCase()) {
+          row.style.background = "rgba(162, 89, 255, 0.3)";
+          row.style.fontWeight = "bold";
+        }
+        
+        // Add row to table
+        tbody.appendChild(row);
+      });
+    }
+    
+    function refreshLeaderboard() {
+      // In a real implementation, this would fetch updated data from backend
+      // For now, we'll just re-render the existing data with a loading effect
+      document.getElementById("leaderboardBody").innerHTML = `
+        <tr>
+          <td colspan="3" style="text-align: center; padding: 30px;">
+            Loading leaderboard data...
+          </td>
+        </tr>
+      `;
+      
+      setTimeout(() => {
+        populateLeaderboard();
+        // Check if user is on leaderboard
+        highlightUserOnLeaderboard();
       }, 1000);
     }
+    
+    function highlightUserOnLeaderboard() {
+      if (!isConnected || !userAddress) return;
+      
+      const rows = document.querySelectorAll("#leaderboardBody tr");
+      rows.forEach(row => {
+        const addressCell = row.querySelector(".wallet-address");
+        if (addressCell && addressCell.textContent.includes(userAddress.substring(0, 4))) {
+          row.style.background = "rgba(162, 89, 255, 0.3)";
+          row.style.fontWeight = "bold";
+        }
+      });
+    }
+
+    // Initialize when DOM is loaded
+    window.addEventListener('DOMContentLoaded', () => {
+      document.getElementById("connectBtn").onclick = handleWalletConnection;
+      populateLeaderboard();
+    });
+  </script>
+</body>
+</html>
+<script type="module">
+  import { sdk } from 'https://esm.sh/@farcaster/frame-sdk';
+
+  window.addEventListener('DOMContentLoaded', () => {
+    sdk.actions.ready();
   });
 </script>
