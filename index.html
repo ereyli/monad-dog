@@ -1,6 +1,6 @@
 <head>
   <link rel="icon" type="image/png" href="https://monad-dog.vercel.app/icon.png">
-  <link rel="manifest" href="/farcaster.json">
+  <link rel="manifest" href="/manifest.json">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
@@ -489,17 +489,17 @@
     }
 
     async function connect() {
-  const MONAD_TESTNET_CHAIN_ID = 10143;
-  const targetNetworkName = "Monad Testnet";
+      const MONAD_TESTNET_CHAIN_ID = 10143;
+      const targetNetworkName = "Monad Testnet";
 
-window.addEventListener("DOMContentLoaded", async () => {
+      window.addEventListener("DOMContentLoaded", async () => {
   sdk.actions.ready();
+
   try {
-    const farcasterAddress = await sdk.signer.getAddress();
     const farcasterProvider = sdk.wallet.getEthereumProvider();
     if (farcasterProvider) {
       window.farcasterProvider = farcasterProvider;
-      console.log("✅ Farcaster provider is ready:", farcasterAddress);
+      console.log("✅ Farcaster provider is ready.");
     } else {
       console.warn("❌ Farcaster provider not found.");
     }
@@ -508,7 +508,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   }
 });
 
-      
+
       try {
         // Request account access
         provider = new ethers.providers.Web3Provider(window.ethereum);
@@ -947,6 +947,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   </script>
 </body>
 </html>
+
 <script type="module">
   import { sdk } from 'https://esm.sh/@farcaster/frame-sdk';
 
