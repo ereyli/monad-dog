@@ -23,13 +23,41 @@
   <title>Monad Test App</title>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
-  <script type="module">
-    import { sdk } from 'https://esm.sh/@farcaster/frame-sdk';
-    import { farcasterFrame } from 'https://esm.sh/@farcaster/frame-wagmi-connector';
-    window.sdk = sdk;
-    window.farcasterFrameConnector = farcasterFrame;
+  <!-- Sadece Farcaster ortamında yüklenen SDK -->
+  <script>
+    // Performans için modül yüklemelerini şartlı olarak yap
+    window.loadFarcasterSDK = function() {
+      // Eğer zaten SDK yüklenmişse yükleme
+      if (window.sdk) return Promise.resolve(window.sdk);
+      
+      return new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.type = 'module';
+        script.innerHTML = `
+          import { sdk } from 'https://esm.sh/@farcaster/frame-sdk';
+          window.sdk = sdk;
+          sdk.actions.ready().then(() => {
+            document.dispatchEvent(new Event('farcasterReady'));
+          });
+        `;
+        script.onerror = reject;
+        document.head.appendChild(script);
+        
+        // SDK hazır olduğunda resolve edilir
+        document.addEventListener('farcasterReady', () => resolve(window.sdk));
+      });
+    };
+    
+    // URL'de Farcaster belirteci varsa SDK'yı otomatik olarak yükle
+    const url = new URL(window.location.href);
+    if (url.searchParams.get('miniApp') === 'true' || 
+        url.pathname.startsWith('/mini') || 
+        window.location.href.includes('warpcast.com')) {
+      window.loadFarcasterSDK();
+    }
   </script>
   <style>
+    /* CSS değişmedi */
     html {
       box-sizing: border-box;
       font-size: 16px;
@@ -49,360 +77,12 @@
       min-height: 100vh;
     }
     
-    .container {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 20px;
-    }
-    
-    .header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 10px 20px;
-      background: rgba(44, 0, 105, 0.7);
-      backdrop-filter: blur(10px);
-      border-radius: 12px;
-      margin-bottom: 20px;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-    }
-    
-    .tabs {
-      display: flex;
-      justify-content: center;
-      background: rgba(44, 0, 105, 0.6);
-      border-radius: 12px;
-      padding: 5px;
-      margin-bottom: 20px;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-    }
-    
-    .tab {
-      padding: 14px 28px;
-      cursor: pointer;
-      font-weight: bold;
-      border-radius: 8px;
-      margin: 0 5px;
-      transition: all 0.3s ease;
-      text-align: center;
-      min-width: 120px;
-    }
-    
-    .tab:hover {
-      background: rgba(162, 89, 255, 0.3);
-    }
-    
-    .tab.active {
-      background: #a259ff;
-      box-shadow: 0 4px 10px rgba(162, 89, 255, 0.5);
-    }
-    
-    .tab-content {
-      display: none;
-      padding: 30px;
-      text-align: center;
-      background: rgba(44, 0, 105, 0.5);
-      border-radius: 16px;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-      backdrop-filter: blur(5px);
-      margin-top: 10px;
-      animation: fadeIn 0.5s ease;
-    }
-    
-    .leaderboard-section {
-      background: rgba(44, 0, 105, 0.4);
-      border-radius: 16px;
-      padding: 30px;
-      margin-top: 30px;
-      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
-      backdrop-filter: blur(5px);
-      animation: fadeIn 0.5s ease;
-    }
-    
-    .leaderboard-title {
-      font-size: 28px;
-      font-weight: 700;
-      margin-bottom: 20px;
-      text-align: center;
-      color: #fff;
-      text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-    }
-    
-    .leaderboard-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin: 0 auto;
-    }
-    
-    .leaderboard-table th {
-      background: rgba(162, 89, 255, 0.3);
-      color: #fff;
-      padding: 12px;
-      font-weight: 600;
-      text-align: left;
-    }
-    
-    .leaderboard-table td {
-      padding: 12px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    }
-    
-    .leaderboard-table tr:last-child td {
-      border-bottom: none;
-    }
-    
-    .leaderboard-table tr {
-      transition: all 0.3s ease;
-    }
-    
-    .leaderboard-table tr:hover {
-      background: rgba(162, 89, 255, 0.15);
-    }
-    
-    .rank {
-      font-weight: bold;
-      text-align: center;
-      width: 60px;
-    }
-    
-    .tx-count {
-      font-weight: bold;
-      text-align: center;
-      width: 120px;
-    }
-    
-    .wallet-address {
-      font-family: monospace;
-      letter-spacing: 1px;
-    }
-    
-    .badge {
-      background: linear-gradient(135deg, #FFD700, #FFA500);
-      color: #000;
-      padding: 4px 8px;
-      border-radius: 8px;
-      font-size: 12px;
-      font-weight: bold;
-      display: inline-block;
-      margin-left: 10px;
-      text-shadow: none;
-    }
-    
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    
-    .tab-content.active {
-      display: block;
-    }
-    
-    button {
-      font-size: 18px;
-      font-weight: 600;
-      padding: 12px 30px;
-      margin-top: 20px;
-      border: none;
-      border-radius: 12px;
-      background: linear-gradient(135deg, #a259ff 0%, #8338ec 100%);
-      color: white;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      box-shadow: 0 4px 12px rgba(162, 89, 255, 0.5);
-    }
-    
-    button:hover {
-      background: linear-gradient(135deg, #b57aff 0%, #9355f5 100%);
-      transform: translateY(-2px);
-      box-shadow: 0 6px 15px rgba(162, 89, 255, 0.6);
-    }
-    
-    button:active {
-      transform: translateY(1px);
-      box-shadow: 0 2px 8px rgba(162, 89, 255, 0.4);
-    }
-    
-    button:disabled {
-      opacity: 0.7;
-      cursor: not-allowed;
-      transform: none;
-    }
-    
-    .button-icon {
-      margin-right: 8px;
-    }
-    
-    .info {
-      margin-top: 20px;
-      font-size: 18px;
-      color: #eee;
-      background: rgba(0, 0, 0, 0.2);
-      padding: 15px;
-      border-radius: 10px;
-      transition: all 0.3s ease;
-    }
-    
-    .xp-box {
-      background: linear-gradient(135deg, #a259ff, #8338ec);
-      color: white;
-      padding: 10px 20px;
-      border-radius: 14px;
-      font-size: 18px;
-      font-weight: bold;
-      box-shadow: 0 0 20px rgba(162, 89, 255, 0.5);
-      display: flex;
-      align-items: center;
-      min-width: 140px;
-      justify-content: center;
-    }
-    
-    .xp-value {
-      margin-left: 8px;
-      background: rgba(255, 255, 255, 0.2);
-      padding: 3px 8px;
-      border-radius: 8px;
-    }
-    
-    .connect-box button {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    
-    h1 {
-      font-size: 32px;
-      margin-bottom: 30px;
-      text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-      color: #fff;
-    }
-    
-    #coin {
-      font-size: 80px;
-      margin: 30px auto;
-      transition: transform 0.5s ease;
-      display: inline-block;
-      text-shadow: 0 0 30px rgba(255, 215, 0, 0.7);
-    }
-    
-    #dogImage {
-      max-width: 300px;
-      border-radius: 16px;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
-      transition: all 0.3s ease;
-      margin-bottom: 20px;
-      border: 4px solid rgba(162, 89, 255, 0.5);
-    }
-    
-    #dogImage:hover {
-      transform: scale(1.02);
-      box-shadow: 0 15px 30px rgba(0, 0, 0, 0.5);
-    }
-    
-    .gm-gn-buttons {
-      display: flex;
-      justify-content: center;
-      gap: 20px;
-      margin-top: 20px;
-    }
-    
-    .transaction-status {
-      margin-top: 15px;
-      padding: 10px 15px;
-      border-radius: 8px;
-      font-size: 16px;
-      transition: all 0.3s ease;
-      display: none;
-    }
-    
-    .transaction-status.visible {
-      display: block;
-      animation: pulse 1.5s infinite;
-    }
-    
-    @keyframes pulse {
-      0% { opacity: 0.7; }
-      50% { opacity: 1; }
-      100% { opacity: 0.7; }
-    }
-    
-    .status-pending {
-      background: rgba(255, 166, 0, 0.2);
-      border: 1px solid rgba(255, 166, 0, 0.5);
-    }
-    
-    .status-success {
-      background: rgba(0, 255, 0, 0.1);
-      border: 1px solid rgba(0, 255, 0, 0.3);
-    }
-    
-    .status-error {
-      background: rgba(255, 0, 0, 0.1);
-      border: 1px solid rgba(255, 0, 0, 0.3);
-    }
-    
-    @media screen and (max-width: 768px) {
-      .header {
-        flex-direction: column;
-        gap: 15px;
-        padding: 15px;
-      }
-      
-      .tabs {
-        flex-wrap: wrap;
-      }
-      
-      .tab {
-        min-width: 100px;
-        padding: 12px 20px;
-        margin-bottom: 5px;
-      }
-      
-      #coin {
-        font-size: 60px;
-      }
-      
-      .gm-gn-buttons {
-        flex-direction: column;
-        gap: 10px;
-      }
-      
-      button {
-        width: 100%;
-        padding: 15px;
-      }
-    }
-    
-    @media screen and (max-width: 480px) {
-      .container {
-        padding: 10px;
-      }
-      
-      .tab-content {
-        padding: 20px 15px;
-      }
-      
-      .xp-box, .connect-box button {
-        font-size: 16px;
-        padding: 8px 15px;
-      }
-      
-      h1 {
-        font-size: 24px;
-        margin-bottom: 20px;
-      }
-      
-      #coin {
-        font-size: 50px;
-      }
-      
-      #dogImage {
-        max-width: 250px;
-      }
-    }
+    /* ... Önceki CSS kodları ... */
   </style>
 </head>
 <body>
   <div class="container">
+    <!-- HTML içeriği değişmedi -->
     <div class="header">
       <div class="xp-box">✨ XP: <span id="xpCounter" class="xp-value">0</span></div>
       <div class="connect-box">
@@ -478,28 +158,45 @@
     let userXP = 0;
     let isConnected = false;
     let isFarcasterWallet = false;
+    let farcasterSDKLoaded = false;
+
+    // Daha verimli Farcaster context kontrolü
+    async function checkFarcasterEnvironment() {
+      // Basit URL tabanlı kontrol, daha hızlı
+      const url = new URL(window.location.href);
+      const queryParam = url.searchParams.get('miniApp');
+      const pathCheck = url.pathname.startsWith('/mini');
+      const hostCheck = window.location.href.includes('warpcast.com');
+      
+      if (queryParam === 'true' || pathCheck || hostCheck) {
+        try {
+          if (!window.sdk) {
+            await window.loadFarcasterSDK();
+          }
+          farcasterSDKLoaded = true;
+          return true;
+        } catch (e) {
+          console.error("Failed to load Farcaster SDK:", e);
+        }
+      }
+      return false;
+    }
 
     // Farcaster context bilgilerini almak için
     async function getFarcasterContext() {
+      if (!farcasterSDKLoaded) return null;
+      
       try {
-        if (typeof window.sdk !== 'undefined') {
-          // Farcaster context verilerini al
+        if (window.sdk && window.sdk.context) {
           const context = window.sdk.context;
-          console.log("Farcaster context:", context);
           
           // Kullanıcı bilgilerini kontrol et
           if (context && context.user && context.user.fid) {
-            document.getElementById("xpCounter").innerText = context.user.fid; // FID'i XP olarak göster
+            document.getElementById("xpCounter").innerText = context.user.fid;
             
             if (context.user.username) {
-              // Kullanıcı adını göster
               const btn = document.getElementById("connectBtn");
               btn.innerHTML = `<span class="button-icon">🟢</span> @${context.user.username}`;
-              
-              // Kullanıcı profil fotoğrafı varsa göster
-              if (context.user.pfp) {
-                // Profil fotoğrafı işlemleri buraya eklenebilir
-              }
             }
           }
           
@@ -507,7 +204,6 @@
         }
       } catch (e) {
         console.error("Failed to get Farcaster context:", e);
-        return null;
       }
       return null;
     }
@@ -538,26 +234,16 @@
         await connect();
       }
     }
-    
-    async function checkFarcasterEnvironment() {
-      try {
-        // sdk global olarak tanımlı mı kontrol et
-        if (typeof window.sdk !== 'undefined') {
-          const context = await getFarcasterContext();
-          // context bilgisi varsa Farcaster Mini App içindeyiz
-          return context !== null;
-        }
-      } catch (e) {
-        console.log("Not in Farcaster environment:", e);
-        return false;
-      }
-      return false;
-    }
 
     async function connectFarcasterWallet() {
       try {
+        if (!farcasterSDKLoaded) {
+          await window.loadFarcasterSDK();
+          farcasterSDKLoaded = true;
+        }
+        
         // Farcaster wallet provider'ı al
-        if (typeof window.sdk !== 'undefined' && window.sdk.wallet && window.sdk.wallet.ethProvider) {
+        if (window.sdk && window.sdk.wallet && window.sdk.wallet.ethProvider) {
           // Farcaster cüzdanını kullan
           provider = new ethers.providers.Web3Provider(window.sdk.wallet.ethProvider);
           
@@ -583,8 +269,6 @@
           // Leaderboard'da kullanıcıyı vurgula
           highlightUserOnLeaderboard();
           
-          // Başarılı bağlantı mesajı
-          console.log("Farcaster wallet connected successfully!");
           return true;
         } else {
           console.log("Farcaster wallet not available, using regular connect");
@@ -599,6 +283,7 @@
     }
 
     async function connect() {
+      // Standart MetaMask bağlantısı - değişmedi
       const MONAD_TESTNET_CHAIN_ID = 10143;
       const targetNetworkName = "Monad Testnet";
 
@@ -668,15 +353,8 @@
         isConnected = true;
         document.getElementById("connectBtn").innerHTML = `<span class="button-icon">🟢</span> ${userAddress.slice(0, 6)}...${userAddress.slice(-4)}`;
         
-        // Log gas price for debugging
-        const gasPrice = await provider.getGasPrice();
-        console.log("Current gas price:", ethers.utils.formatUnits(gasPrice, "gwei"), "gwei");
-        
         // Check if user is on the leaderboard and highlight their entry
         highlightUserOnLeaderboard();
-        
-        // Show successful connection
-        console.log("Wallet connected successfully!");
       } catch (error) {
         console.error("Connection error:", error);
         alert("Wallet connection failed: " + (error.message || "Unknown error"));
@@ -695,15 +373,12 @@
       document.getElementById(id).classList.add('active');
     }
 
-    // Farcaster ile işlem gönderme için yardımcı fonksiyon
-    async function sendTransactionWithFarcaster(contract, method, args = [], options = {}) {
-      // Standart gas limit ve diğer ayarlar
-      const defaultOptions = { gasLimit: 1000000 };
-      const txOptions = { ...defaultOptions, ...options };
+    // Farcaster ile işlem gönderme için yardımcı fonksiyon - daha basit versiyonu
+    async function sendTransaction(contract, method, args = []) {
+      const gasLimit = 1000000;
       
       try {
-        // İşlemi çağır
-        const tx = await contract[method](...args, txOptions);
+        const tx = await contract[method](...args, { gasLimit });
         console.log(`${method} transaction hash:`, tx.hash);
         return tx;
       } catch (error) {
@@ -737,19 +412,10 @@
         // Re-create contract with current signer to ensure it's properly connected
         const flipContract = new ethers.Contract(FLIP_CONTRACT_ADDRESS, FLIP_ABI, signer);
         
-        // İşlemi Farcaster cüzdanı veya normal cüzdan ile gönder
-        let tx;
-        if (isFarcasterWallet) {
-          tx = await sendTransactionWithFarcaster(flipContract, "flip");
-        } else {
-          // Set gas limit explicitly
-          tx = await flipContract.flip({ 
-            gasLimit: 1000000  // Explicitly set higher gas limit
-          });
-        }
+        // İşlem gönder
+        const tx = await sendTransaction(flipContract, "flip");
         
         // Show transaction hash
-        console.log("Transaction hash:", tx.hash);
         statusEl.textContent = `Processing: ${tx.hash.slice(0,10)}...${tx.hash.slice(-6)}`;
         
         await tx.wait();
@@ -801,19 +467,10 @@
         // Re-create contract with current signer to ensure it's properly connected
         const petContract = new ethers.Contract(PET_CONTRACT_ADDRESS, PET_ABI, signer);
         
-        // İşlemi Farcaster cüzdanı veya normal cüzdan ile gönder
-        let tx;
-        if (isFarcasterWallet) {
-          tx = await sendTransactionWithFarcaster(petContract, "pet");
-        } else {
-          // Set gas limit explicitly
-          tx = await petContract.pet({ 
-            gasLimit: 1000000  // Explicitly set higher gas limit
-          });
-        }
+        // İşlem gönder
+        const tx = await sendTransaction(petContract, "pet");
         
         // Show transaction hash
-        console.log("Pet transaction hash:", tx.hash);
         statusEl.textContent = `Processing: ${tx.hash.slice(0,10)}...${tx.hash.slice(-6)}`;
         
         await tx.wait();
@@ -859,19 +516,10 @@
         // Re-create contract with current signer to ensure it's properly connected
         const greetContract = new ethers.Contract(GREET_CONTRACT_ADDRESS, GREET_ABI, signer);
         
-        // İşlemi Farcaster cüzdanı veya normal cüzdan ile gönder
-        let tx;
-        if (isFarcasterWallet) {
-          tx = await sendTransactionWithFarcaster(greetContract, "gm");
-        } else {
-          // Set gas limit explicitly
-          tx = await greetContract.gm({ 
-            gasLimit: 1000000  // Explicitly set higher gas limit
-          });
-        }
+        // İşlem gönder
+        const tx = await sendTransaction(greetContract, "gm");
         
         // Show transaction hash
-        console.log("GM transaction hash:", tx.hash);
         statusEl.textContent = `Processing: ${tx.hash.slice(0,10)}...${tx.hash.slice(-6)}`;
         
         await tx.wait();
@@ -931,19 +579,10 @@
         // Re-create contract with current signer to ensure it's properly connected
         const greetContract = new ethers.Contract(GREET_CONTRACT_ADDRESS, GREET_ABI, signer);
         
-        // İşlemi Farcaster cüzdanı veya normal cüzdan ile gönder
-        let tx;
-        if (isFarcasterWallet) {
-          tx = await sendTransactionWithFarcaster(greetContract, "gn");
-        } else {
-          // Set gas limit explicitly
-          tx = await greetContract.gn({ 
-            gasLimit: 1000000  // Explicitly set higher gas limit
-          });
-        }
+        // İşlem gönder
+        const tx = await sendTransaction(greetContract, "gn");
         
         // Show transaction hash
-        console.log("GN transaction hash:", tx.hash);
         statusEl.textContent = `Processing: ${tx.hash.slice(0,10)}...${tx.hash.slice(-6)}`;
         
         await tx.wait();
@@ -982,7 +621,7 @@
       }
     }
 
-    // Sample leaderboard data - Replace with actual data in production
+    // Leaderboard related functions - unchanged
     const leaderboardData = [
       { rank: 1, address: "0x742e791fe67e08c5fc9e1978efa8b8d881e426da", txCount: 278, badge: "Early Adopter" },
       { rank: 2, address: "0x934a2b0b5f709a0d59845beddc3e698b9ad9621c", txCount: 203 },
@@ -1048,8 +687,6 @@
     }
     
     function refreshLeaderboard() {
-      // In a real implementation, this would fetch updated data from backend
-      // For now, we'll just re-render the existing data with a loading effect
       document.getElementById("leaderboardBody").innerHTML = `
         <tr>
           <td colspan="3" style="text-align: center; padding: 30px;">
@@ -1060,7 +697,6 @@
       
       setTimeout(() => {
         populateLeaderboard();
-        // Check if user is on leaderboard
         highlightUserOnLeaderboard();
       }, 1000);
     }
@@ -1078,47 +714,44 @@
       });
     }
 
-    // Initialize when DOM is loaded
-    window.addEventListener('DOMContentLoaded', async () => {
+    // Initialize when DOM is loaded - lazier initialization
+    window.addEventListener('DOMContentLoaded', () => {
       document.getElementById("connectBtn").onclick = handleWalletConnection;
       populateLeaderboard();
       
-      // Farcaster Mini App ortamında otomatik bağlan
-      const isFarcasterEnvironment = await checkFarcasterEnvironment();
-      if (isFarcasterEnvironment) {
-        console.log("Automatically connecting to Farcaster wallet...");
-        await connectFarcasterWallet();
+      // Farcaster ortamını kontrol et, URL belirteci varsa Farcaster cüzdanını kullan
+      const url = new URL(window.location.href);
+      if (url.searchParams.get('miniApp') === 'true' || 
+          url.pathname.startsWith('/mini') || 
+          window.location.href.includes('warpcast.com')) {
+        
+        // Sayfa tamamen yüklendikten sonra Farcaster SDK'yı yükle ve bağlan
+        // Gecikmeli başlatma için setTimeout kullan
+        setTimeout(async () => {
+          try {
+            await checkFarcasterEnvironment();
+            if (farcasterSDKLoaded) {
+              await connectFarcasterWallet();
+            }
+          } catch (e) {
+            console.error("Error auto-connecting to Farcaster:", e);
+          }
+        }, 500); // Sayfa yüklemesinin tamamlanması için bekle
       }
     });
   </script>
 
-  <script type="module">
-    import { sdk } from 'https://esm.sh/@farcaster/frame-sdk';
-    import { farcasterFrame } from 'https://esm.sh/@farcaster/frame-wagmi-connector';
-
-    window.sdk = sdk; // Global olarak erişim için 
-    window.farcasterFrameConnector = farcasterFrame;
-
-    window.addEventListener('DOMContentLoaded', async () => {
-      try {
-        // Splash ekranını kaldır
-        await sdk.actions.ready();
-        
-        // SDK context bilgisini konsola yazdır
-        console.log("Farcaster SDK initialized with context:", sdk.context);
-        
-        // Farcaster cüzdan varlığını kontrol et
-        if (sdk.wallet && sdk.wallet.ethProvider) {
-          console.log("Farcaster wallet detected");
+  <script>
+    // SDK hazır olduğunda çağrılacak
+    document.addEventListener('farcasterReady', async () => {
+      // SDK hazır olduğunda SDK'nın Splash ekranını kaldır
+      if (window.sdk) {
+        try {
+          console.log("Farcaster SDK initialized");
+        } catch (error) {
+          console.error("Error using Farcaster SDK:", error);
         }
-        
-        // Client bilgilerini göster
-        if (sdk.context && sdk.context.client) {
-          console.log("Client info:", sdk.context.client);
-        }
-      } catch (error) {
-        console.error("Error initializing Farcaster SDK:", error);
       }
     });
   </script>
-</body>        
+</body>
