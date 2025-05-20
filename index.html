@@ -457,7 +457,32 @@
       <button onclick="refreshLeaderboard()" style="margin-top: 30px;"><span class="button-icon">🔄</span> Refresh Leaderboard</button>
     </div>
   </div>
-
+  
+<script type="module">
+  import { sdk } from 'https://esm.sh/@farcaster/frame-sdk';
+  
+  try {
+    // Global erişim için SDK'yı ekle
+    window.sdk = sdk;
+    
+    // Splash ekranını kaldır
+    await sdk.actions.ready();
+    console.log("Farcaster SDK ready");
+    
+    // SDK tamamen yüklendikten sonra, farcaster cüzdanına otomatik bağlantı kur
+    if (sdk.wallet && sdk.wallet.ethProvider) {
+      console.log("Farcaster wallet detected, connecting automatically...");
+      // Bir sonraki tik'te çalıştır, DOM'un yüklenmesini bekle
+      setTimeout(() => {
+        if (typeof connectFarcasterWallet === 'function') {
+          connectFarcasterWallet();
+        }
+      }, 500);
+    }
+  } catch (err) {
+    console.error("Farcaster SDK error:", err);
+  }
+    
 <script>
   const FLIP_CONTRACT_ADDRESS = "0xc5b2280d1e2f155f9a2be2af7e78190658874106";
   const GREET_CONTRACT_ADDRESS = "0xbc8b78f3e2348d4b5e0390fe700ce54b59931da4";
