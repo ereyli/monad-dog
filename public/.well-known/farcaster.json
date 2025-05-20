@@ -1,10 +1,10 @@
 {
   "frame": {
     "version": "1",
-    "name": "Monad Test App",
-    "iconUrl": "https://placedog.net/favicon.ico",
+    "name": "Monad Dog App",
+    "iconUrl": "https://monad-dog.vercel.app/icon.png",
     "homeUrl": "https://monad-dog.vercel.app/",
-    "splashImageUrl": "https://monad-dog.vercel.app/splash.png",
-    "splashBackgroundColor": "#ffffff"
+    "splashImageUrl": "https://monad-dog.vercel.app/icon.png",
+    "splashBackgroundColor": "#2d014d"
   }
 }
