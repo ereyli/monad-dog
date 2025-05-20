@@ -458,134 +458,150 @@
     </div>
   </div>
 
-  <script>
-    const FLIP_CONTRACT_ADDRESS = "0xc5b2280d1e2f155f9a2be2af7e78190658874106";
-    const GREET_CONTRACT_ADDRESS = "0xbc8b78f3e2348d4b5e0390fe700ce54b59931da4";
-    const PET_CONTRACT_ADDRESS = "0xc53abe4c593b9440407f8ac1b346f3f999e6d8ed";
+<script>
+  const FLIP_CONTRACT_ADDRESS = "0xc5b2280d1e2f155f9a2be2af7e78190658874106";
+  const GREET_CONTRACT_ADDRESS = "0xbc8b78f3e2348d4b5e0390fe700ce54b59931da4";
+  const PET_CONTRACT_ADDRESS = "0xc53abe4c593b9440407f8ac1b346f3f999e6d8ed";
 
-    const FLIP_ABI = ["function flip() public"];
-    const GREET_ABI = ["function gm() public", "function gn() public"];
-    const PET_ABI = ["function pet() public"];
+  const FLIP_ABI = ["function flip() public"];
+  const GREET_ABI = ["function gm() public", "function gn() public"];
+  const PET_ABI = ["function pet() public"];
 
-    let provider, signer, userAddress, flipContract;
-    let userXP = 0;
-    let isConnected = false;
-    let isFarcasterWallet = false;
+  let provider, signer, userAddress, flipContract;
+  let userXP = 0;
+  let isConnected = false;
+  let isFarcasterWallet = false;
 
-    function disconnect() {
-      provider = null;
-      signer = null;
-      userAddress = null;
-      isConnected = false;
-      isFarcasterWallet = false;
-      document.getElementById("connectBtn").innerHTML = '<span class="button-icon">🔌</span> Connect Wallet';
-    }
+  function disconnect() {
+    provider = null;
+    signer = null;
+    userAddress = null;
+    isConnected = false;
+    isFarcasterWallet = false;
+    document.getElementById("connectBtn").innerHTML = '<span class="button-icon">🔌</span> Connect Wallet';
+  }
 
-    async function handleWalletConnection() {
-      if (isConnected) {
-        disconnect();
-        return;
-      }
-      
-      if (window.sdk && window.sdk.wallet && window.sdk.wallet.ethProvider) {
-        await connectFarcasterWallet();
-      } else {
-        await connect();
-      }
+  async function handleWalletConnection() {
+    if (isConnected) {
+      disconnect();
+      return;
     }
     
-    async function connectFarcasterWallet() {
-      try {
-        provider = new ethers.providers.Web3Provider(window.sdk.wallet.ethProvider);
-        signer = provider.getSigner();
-        userAddress = await signer.getAddress();
-        
-        flipContract = new ethers.Contract(FLIP_CONTRACT_ADDRESS, FLIP_ABI, signer);
-        
-        isConnected = true;
-        isFarcasterWallet = true;
-        document.getElementById("connectBtn").innerHTML = `<span class="button-icon">🟢</span> ${userAddress.slice(0, 6)}...${userAddress.slice(-4)}`;
-        
-        if (window.sdk && window.sdk.context && window.sdk.context.user) {
-          if (window.sdk.context.user.username) {
-            document.getElementById("connectBtn").innerHTML = `<span class="button-icon">🟢</span> @${window.sdk.context.user.username}`;
-          }
-          
-          if (window.sdk.context.user.fid) {
-            userXP = window.sdk.context.user.fid;
-            document.getElementById("xpCounter").innerText = userXP;
-          }
+    // Önce Farcaster cüzdanını kontrol et
+    if (window.sdk && window.sdk.wallet && window.sdk.wallet.ethProvider) {
+      await connectFarcasterWallet();
+    } 
+    // Farcaster yoksa MetaMask kontrol et
+    else if (window.ethereum) {
+      await connect();
+    }
+    // Hiçbir cüzdan yoksa, Farcaster SDK'sı varsa sessizce çık
+    else if (window.sdk) {
+      console.log("No wallet available in Farcaster environment");
+    }
+    // Hiçbir cüzdan yoksa ve Farcaster ortamında değilsek hata göster
+    else {
+      alert("MetaMask is not installed");
+    }
+  }
+  
+  async function connectFarcasterWallet() {
+    try {
+      provider = new ethers.providers.Web3Provider(window.sdk.wallet.ethProvider);
+      signer = provider.getSigner();
+      userAddress = await signer.getAddress();
+      
+      flipContract = new ethers.Contract(FLIP_CONTRACT_ADDRESS, FLIP_ABI, signer);
+      
+      isConnected = true;
+      isFarcasterWallet = true;
+      document.getElementById("connectBtn").innerHTML = `<span class="button-icon">🟢</span> ${userAddress.slice(0, 6)}...${userAddress.slice(-4)}`;
+      
+      if (window.sdk && window.sdk.context && window.sdk.context.user) {
+        if (window.sdk.context.user.username) {
+          document.getElementById("connectBtn").innerHTML = `<span class="button-icon">🟢</span> @${window.sdk.context.user.username}`;
         }
         
-        highlightUserOnLeaderboard();
-        return true;
-      } catch (error) {
-        console.error("Farcaster wallet error:", error);
-        return false;
+        if (window.sdk.context.user.fid) {
+          userXP = window.sdk.context.user.fid;
+          document.getElementById("xpCounter").innerText = userXP;
+        }
       }
+      
+      highlightUserOnLeaderboard();
+      return true;
+    } catch (error) {
+      console.error("Farcaster wallet error:", error);
+      return false;
     }
+  }
 
-    async function connect() {
-      const MONAD_TESTNET_CHAIN_ID = 10143;
+  async function connect() {
+    const MONAD_TESTNET_CHAIN_ID = 10143;
 
-      if (!window.ethereum) {
-        alert("MetaMask is not installed");
+    if (!window.ethereum) {
+      // Farcaster içindeyse sessizce çık
+      if (window.sdk) {
+        console.log("MetaMask not available in Farcaster environment");
         return;
       }
+      alert("MetaMask is not installed");
+      return;
+    }
 
-      try {
-        provider = new ethers.providers.Web3Provider(window.ethereum);
-        await provider.send("eth_requestAccounts", []);
-        
-        const network = await provider.getNetwork();
-        
-        if (network.chainId !== MONAD_TESTNET_CHAIN_ID) {
+    try {
+      provider = new ethers.providers.Web3Provider(window.ethereum);
+      await provider.send("eth_requestAccounts", []);
+      
+      const network = await provider.getNetwork();
+      
+      if (network.chainId !== MONAD_TESTNET_CHAIN_ID) {
+        try {
+          await window.ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: '0x' + MONAD_TESTNET_CHAIN_ID.toString(16) }],
+          });
+          
+          provider = new ethers.providers.Web3Provider(window.ethereum);
+        } catch (switchError) {
           try {
             await window.ethereum.request({
-              method: 'wallet_switchEthereumChain',
-              params: [{ chainId: '0x' + MONAD_TESTNET_CHAIN_ID.toString(16) }],
+              method: 'wallet_addEthereumChain',
+              params: [{
+                chainId: '0x' + MONAD_TESTNET_CHAIN_ID.toString(16),
+                chainName: 'Monad Testnet',
+                nativeCurrency: {
+                  name: 'Monad',
+                  symbol: 'MONAD',
+                  decimals: 18
+                },
+                rpcUrls: ['https://rpc.monad.xyz/monad-testnet'],
+                blockExplorerUrls: ['https://explorer.monad.xyz/']
+              }]
             });
             
             provider = new ethers.providers.Web3Provider(window.ethereum);
-          } catch (switchError) {
-            try {
-              await window.ethereum.request({
-                method: 'wallet_addEthereumChain',
-                params: [{
-                  chainId: '0x' + MONAD_TESTNET_CHAIN_ID.toString(16),
-                  chainName: 'Monad Testnet',
-                  nativeCurrency: {
-                    name: 'Monad',
-                    symbol: 'MONAD',
-                    decimals: 18
-                  },
-                  rpcUrls: ['https://rpc.monad.xyz/monad-testnet'],
-                  blockExplorerUrls: ['https://explorer.monad.xyz/']
-                }]
-              });
-              
-              provider = new ethers.providers.Web3Provider(window.ethereum);
-            } catch (error) {
-              alert(`Please manually switch to Monad Testnet in your wallet.`);
-              return;
-            }
+          } catch (error) {
+            alert(`Please manually switch to Monad Testnet in your wallet.`);
+            return;
           }
         }
-        
-        signer = provider.getSigner();
-        userAddress = await signer.getAddress();
-        
-        flipContract = new ethers.Contract(FLIP_CONTRACT_ADDRESS, FLIP_ABI, signer);
-        
-        isConnected = true;
-        document.getElementById("connectBtn").innerHTML = `<span class="button-icon">🟢</span> ${userAddress.slice(0, 6)}...${userAddress.slice(-4)}`;
-        
-        highlightUserOnLeaderboard();
-      } catch (error) {
-        console.error("Connection error:", error);
-        alert("Wallet connection failed");
       }
+      
+      signer = provider.getSigner();
+      userAddress = await signer.getAddress();
+      
+      flipContract = new ethers.Contract(FLIP_CONTRACT_ADDRESS, FLIP_ABI, signer);
+      
+      isConnected = true;
+      document.getElementById("connectBtn").innerHTML = `<span class="button-icon">🟢</span> ${userAddress.slice(0, 6)}...${userAddress.slice(-4)}`;
+      
+      highlightUserOnLeaderboard();
+    } catch (error) {
+      console.error("Connection error:", error);
+      alert("Wallet connection failed");
     }
+  }
 
     function addXP(amount) {
       userXP += amount;
@@ -878,20 +894,27 @@ const leaderboardData = [
       });
     }
 
-    window.addEventListener('DOMContentLoaded', async () => {
-      document.getElementById("connectBtn").onclick = handleWalletConnection;
-      populateLeaderboard();
-      
-      if (window.sdk && window.sdk.wallet && window.sdk.wallet.ethProvider) {
-        await connectFarcasterWallet();
-      }
-    });
-  </script>
-
-  <script type="module">
-    import { sdk } from 'https://esm.sh/@farcaster/frame-sdk';
+     window.addEventListener('DOMContentLoaded', async () => {
+    document.getElementById("connectBtn").onclick = handleWalletConnection;
+    populateLeaderboard();
     
+    // Farcaster ortamındaysa otomatik bağlanmayı dene
+    if (window.sdk && window.sdk.wallet && window.sdk.wallet.ethProvider) {
+      setTimeout(async () => {
+        await connectFarcasterWallet();
+      }, 500); // Splash ekranının kaldırılması için biraz beklet
+    }
+  });
+</script>
+
+<script type="module">
+  import { sdk } from 'https://esm.sh/@farcaster/frame-sdk';
+  
+  try {
     window.sdk = sdk;
     await sdk.actions.ready();
-  </script>
-</body>
+    console.log("Farcaster SDK ready");
+  } catch (err) {
+    console.error("Farcaster SDK error:", err);
+  }
+</script>
