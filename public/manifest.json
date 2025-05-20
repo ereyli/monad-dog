@@ -1,1 +1,6 @@
-
+{
+  "name": "Monad Dog",
+  "description": "Pet the dog, flip coins, and say GM/GN on Monad — now on Farcaster!",
+  "url": "https://monad-dog.vercel.app",
+  "icon": "https://placedog.net/favicon.ico"
+}
