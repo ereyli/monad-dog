@@ -919,26 +919,10 @@
   </script>
 </body>
 </html>
-
 <script type="module">
   import { sdk } from 'https://esm.sh/@farcaster/frame-sdk';
 
-  const app = sdk.init();
-
-  app.getUser().then(user => {
-  console.log("👤 Farcaster user:", user);
-
-  const welcome = document.createElement("p");
-  welcome.innerText = `Welcome, @${user.username} 👋`;
-  welcome.style.textAlign = "center";
-  welcome.style.marginTop = "20px";
-  welcome.style.fontSize = "20px";
-  welcome.style.fontWeight = "600";
-  document.querySelector(".container").appendChild(welcome);
-
-  // ✅ Splash screen'i kapat
-  sdk.actions.ready();  // 👈 BUNU EKLE
-
-}).catch(err => {
-  console.log("Farcaster user not found:", err);
-});
+  window.addEventListener('DOMContentLoaded', () => {
+    sdk.actions.ready();
+  });
+</script>
