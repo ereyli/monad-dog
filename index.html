@@ -489,16 +489,28 @@
     }
 
     async function connect() {
-      const MONAD_TESTNET_CHAIN_ID = 10143;
-      const targetNetworkName = "Monad Testnet";
-if (!window.ethereum && window.sdk?.wallet) {
-  try {
-    window.ethereum = window.sdk.wallet.getEthereumProvider();
-    console.log("Farcaster provider injected");
-  } catch (e) {
-    console.warn("Farcaster provider injection failed:", e);
+  const MONAD_TESTNET_CHAIN_ID = 10143;
+  const targetNetworkName = "Monad Testnet";
+
+  if (!window.ethereum && window.sdk?.wallet) {
+    try {
+      window.ethereum = window.sdk.wallet.getEthereumProvider();
+      console.log("✅ Farcaster provider eklendi.");
+    } catch (e) {
+      console.warn("⚠️ Farcaster provider yüklenemedi:", e);
+    }
   }
+
+  
+  if (!window.ethereum) {
+    alert("No wallet detected (Farcaster or MetaMask).");
+    return;
+  }
+
+  provider = new ethers.providers.Web3Provider(window.ethereum);
+  ...
 }
+
 
       try {
         // Request account access
