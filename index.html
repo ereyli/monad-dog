@@ -473,33 +473,6 @@
     let isConnected = false;
     let isFarcasterWallet = false;
 
-    // Farcaster context bilgilerini almak için
-    async function getFarcasterContext() {
-      try {
-        if (typeof window.sdk !== 'undefined') {
-          // Farcaster context verilerini al
-          const context = window.sdk.context;
-          console.log("Farcaster context:", context);
-          
-          // Kullanıcı bilgilerini kontrol et
-          if (context && context.user && context.user.fid) {
-            document.getElementById("xpCounter").innerText = context.user.fid; // FID'i XP olarak göster
-            
-            if (context.user.username) {
-              // Kullanıcı adını göster
-              const btn = document.getElementById("connectBtn");
-              btn.innerHTML = `<span class="button-icon">🟢</span> @${context.user.username}`;
-            }
-          }
-          
-          return context;
-        }
-      } catch (e) {
-        console.error("Failed to get Farcaster context:", e);
-      }
-      return null;
-    }
-
     function disconnect() {
       provider = null;
       signer = null;
@@ -515,53 +488,49 @@
         return;
       }
       
-      // Farcaster ortamında mı kontrol et - sadece SDK varsa
-      const isFarcaster = typeof window.sdk !== 'undefined';
-      
-      if (isFarcaster) {
+      // Farcaster cüzdanı mevcut mu kontrol et
+      if (window.sdk && window.sdk.wallet && window.sdk.wallet.ethProvider) {
         // Farcaster cüzdanını kullan
         await connectFarcasterWallet();
       } else {
-        // Normal MetaMask cüzdanını kullan
+        // Normal cüzdanı kullan
         await connect();
       }
     }
-
+    
     async function connectFarcasterWallet() {
       try {
-        // Farcaster wallet provider'ı al
-        if (typeof window.sdk !== 'undefined' && window.sdk.wallet && window.sdk.wallet.ethProvider) {
-          // Farcaster cüzdanını kullan
-          provider = new ethers.providers.Web3Provider(window.sdk.wallet.ethProvider);
+        // Farcaster cüzdanını kullan
+        provider = new ethers.providers.Web3Provider(window.sdk.wallet.ethProvider);
+        
+        // Signer ve adres bilgilerini al
+        signer = provider.getSigner();
+        userAddress = await signer.getAddress();
+        console.log("Connected to Farcaster wallet:", userAddress);
+        
+        // Sözleşmeleri tanımla
+        flipContract = new ethers.Contract(FLIP_CONTRACT_ADDRESS, FLIP_ABI, signer);
+        
+        // Düğme güncelleme
+        isConnected = true;
+        isFarcasterWallet = true;
+        document.getElementById("connectBtn").innerHTML = `<span class="button-icon">🟢</span> ${userAddress.slice(0, 6)}...${userAddress.slice(-4)}`;
+        
+        // Farcaster kullanıcı bilgilerini al ve göster
+        if (window.sdk && window.sdk.context && window.sdk.context.user && window.sdk.context.user.username) {
+          document.getElementById("connectBtn").innerHTML = `<span class="button-icon">🟢</span> @${window.sdk.context.user.username}`;
           
-          // Signer ve adres bilgilerini al
-          signer = provider.getSigner();
-          userAddress = await signer.getAddress();
-          console.log("Connected to Farcaster wallet:", userAddress);
-          
-          // Sözleşmeleri tanımla
-          flipContract = new ethers.Contract(FLIP_CONTRACT_ADDRESS, FLIP_ABI, signer);
-          
-          // Düğme güncelleme
-          isConnected = true;
-          isFarcasterWallet = true;
-          document.getElementById("connectBtn").innerHTML = `<span class="button-icon">🟢</span> ${userAddress.slice(0, 6)}...${userAddress.slice(-4)}`;
-          
-          // Farcaster kullanıcı bilgilerini al ve göster
-          const context = await getFarcasterContext();
-          if (context && context.user && context.user.username) {
-            document.getElementById("connectBtn").innerHTML = `<span class="button-icon">🟢</span> @${context.user.username}`;
+          // FID'i XP olarak göster
+          if (window.sdk.context.user.fid) {
+            userXP = window.sdk.context.user.fid;
+            document.getElementById("xpCounter").innerText = userXP;
           }
-          
-          // Leaderboard'da kullanıcıyı vurgula
-          highlightUserOnLeaderboard();
-          
-          return true;
-        } else {
-          console.log("Farcaster wallet not available, using regular connect");
-          // Farcaster cüzdanı yoksa normal bağlantıya geri dön
-          return await connect();
         }
+        
+        // Leaderboard'da kullanıcıyı vurgula
+        highlightUserOnLeaderboard();
+        
+        return true;
       } catch (error) {
         console.error("Farcaster wallet connection error:", error);
         alert("Farcaster wallet connection failed: " + (error.message || "Unknown error"));
@@ -819,7 +788,7 @@
           document.querySelector('button[onclick="sayGM()"]').disabled = false;
         }, 3000);
         
-       
+        // Show success status
         statusEl.textContent = "GM successfully sent to the community!";
         statusEl.className = "transaction-status status-success visible";
         setTimeout(() => {
@@ -828,7 +797,7 @@
         
         addXP(5);
       } catch (e) {
-
+        // Update button appearance
         buttonSpan.textContent = "❌";
         setTimeout(() => {
           buttonSpan.textContent = "☀️";
@@ -837,6 +806,7 @@
         
         console.error("GM error:", e);
         
+        // Show error status
         statusEl.textContent = `Error: ${e.message ? e.message.slice(0, 50) : "Unknown error"}`;
         statusEl.className = "transaction-status status-error visible";
         setTimeout(() => {
@@ -854,31 +824,37 @@
       const statusEl = document.getElementById("greetStatus");
       const buttonSpan = document.querySelector('button[onclick="sayGN()"] .button-icon');
       
+      // Update button appearance
       document.querySelector('button[onclick="sayGN()"]').disabled = true;
       buttonSpan.textContent = "⏳";
       
+      // Show pending status
       statusEl.textContent = "Sending GN to the blockchain...";
       statusEl.className = "transaction-status status-pending visible";
       
       try {
-
-                const greetContract = new ethers.Contract(GREET_CONTRACT_ADDRESS, GREET_ABI, signer);
+        // Re-create contract with current signer to ensure it's properly connected
+        const greetContract = new ethers.Contract(GREET_CONTRACT_ADDRESS, GREET_ABI, signer);
         
+        // Set gas limit explicitly
         const tx = await greetContract.gn({ 
-          gasLimit: 1000000 
+          gasLimit: 1000000  // Explicitly set higher gas limit
         });
         
+        // Show transaction hash
         console.log("GN transaction hash:", tx.hash);
         statusEl.textContent = `Processing: ${tx.hash.slice(0,10)}...${tx.hash.slice(-6)}`;
         
         await tx.wait();
         
+        // Update button appearance
         buttonSpan.textContent = "✅";
         setTimeout(() => {
           buttonSpan.textContent = "🌙";
           document.querySelector('button[onclick="sayGN()"]').disabled = false;
         }, 3000);
         
+        // Show success status
         statusEl.textContent = "GN successfully sent to the community!";
         statusEl.className = "transaction-status status-success visible";
         setTimeout(() => {
@@ -886,8 +862,8 @@
         }, 3000);
         
         addXP(5);
-      } catch (e) { 
-        
+      } catch (e) {
+        // Update button appearance
         buttonSpan.textContent = "❌";
         setTimeout(() => {
           buttonSpan.textContent = "🌙";
@@ -896,6 +872,7 @@
         
         console.error("GN error:", e);
         
+        // Show error status
         statusEl.textContent = `Error: ${e.message ? e.message.slice(0, 50) : "Unknown error"}`;
         statusEl.className = "transaction-status status-error visible";
         setTimeout(() => {
@@ -904,6 +881,7 @@
       }
     }
 
+    // Sample leaderboard data - Replace with actual data in production
     const leaderboardData = [
       { rank: 1, address: "0x742e791fe67e08c5fc9e1978efa8b8d881e426da", txCount: 278, badge: "Early Adopter" },
       { rank: 2, address: "0x934a2b0b5f709a0d59845beddc3e698b9ad9621c", txCount: 203 },
@@ -929,14 +907,17 @@
       leaderboardData.forEach(item => {
         const row = document.createElement("tr");
         
+        // Rank cell
         const rankCell = document.createElement("td");
         rankCell.className = "rank";
         rankCell.textContent = "#" + item.rank;
         
+        // Address cell
         const addressCell = document.createElement("td");
         addressCell.className = "wallet-address";
         addressCell.textContent = maskAddress(item.address);
         
+        // Add badge if exists
         if (item.badge) {
           const badge = document.createElement("span");
           badge.className = "badge";
@@ -944,27 +925,31 @@
           addressCell.appendChild(badge);
         }
         
+        // TX count cell
         const txCell = document.createElement("td");
         txCell.className = "tx-count";
         txCell.textContent = item.txCount;
         
+        // Append all cells to row
         row.appendChild(rankCell);
         row.appendChild(addressCell);
         row.appendChild(txCell);
         
+        // Highlight user's address if connected
         if (isConnected && userAddress && item.address.toLowerCase() === userAddress.toLowerCase()) {
           row.style.background = "rgba(162, 89, 255, 0.3)";
           row.style.fontWeight = "bold";
         }
         
-       
+        // Add row to table
         tbody.appendChild(row);
       });
     }
     
     function refreshLeaderboard() {
-
-            document.getElementById("leaderboardBody").innerHTML = `
+      // In a real implementation, this would fetch updated data from backend
+      // For now, we'll just re-render the existing data with a loading effect
+      document.getElementById("leaderboardBody").innerHTML = `
         <tr>
           <td colspan="3" style="text-align: center; padding: 30px;">
             Loading leaderboard data...
@@ -974,7 +959,7 @@
       
       setTimeout(() => {
         populateLeaderboard();
-
+        // Check if user is on leaderboard
         highlightUserOnLeaderboard();
       }, 1000);
     }
@@ -992,30 +977,36 @@
       });
     }
 
-    window.addEventListener('DOMContentLoaded', () => {
+    // Initialize when DOM is loaded
+    window.addEventListener('DOMContentLoaded', async () => {
       document.getElementById("connectBtn").onclick = handleWalletConnection;
       populateLeaderboard();
       
-      if (typeof window.sdk !== 'undefined') {
-        
-        setTimeout(async () => {
-          await connectFarcasterWallet();
-        }, 300);
+      // Farcaster SDK varsa ve kullanılabilir durumdaysa otomatik bağlantı kur
+      if (window.sdk && window.sdk.wallet && window.sdk.wallet.ethProvider) {
+        console.log("Farcaster wallet detected, connecting automatically...");
+        await connectFarcasterWallet();
       }
     });
   </script>
 
   <script type="module">
+    import { sdk } from 'https://esm.sh/@farcaster/frame-sdk';
 
     try {
-      const { sdk } = await import('https://esm.sh/@farcaster/frame-sdk');
+      // Global erişim için
       window.sdk = sdk;
       
+      // Splash ekranını kaldır ve başlat
       await sdk.actions.ready();
+      console.log("Farcaster SDK ready and splash screen removed");
       
-      console.log("Farcaster SDK initialized with context:", sdk.context);
+      // Context bilgilerini konsola yazdır (debugging için)
+      if (sdk.context) {
+        console.log("Farcaster context:", sdk.context);
+      }
     } catch (error) {
-      console.error("Error loading Farcaster SDK:", error);
+      console.error("Error initializing Farcaster SDK:", error);
     }
   </script>
 </body>
