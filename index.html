@@ -1,6 +1,6 @@
 <head>
   <link rel="icon" type="image/png" href="https://monad-dog.vercel.app/icon.png">
-  <link rel="manifest" href="/manifest.json">
+  <link rel="manifest" href="/farcaster.json">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
@@ -492,20 +492,19 @@
   const MONAD_TESTNET_CHAIN_ID = 10143;
   const targetNetworkName = "Monad Testnet";
 
-  if (!window.ethereum && window.sdk?.wallet) {
-    try {
-      window.ethereum = window.sdk.wallet.getEthereumProvider();
-      console.log("✅ Farcaster provider eklendi.");
-    } catch (e) {
-      console.warn("⚠️ Farcaster provider yüklenemedi:", e);
-    }
-  }
+ const farcasterProvider = window.sdk?.wallet?.getEthereumProvider?.();
 
-  
-  if (!window.ethereum) {
-    alert("No wallet detected (Farcaster or MetaMask).");
-    return;
-  }
+if (farcasterProvider) {
+  provider = new ethers.providers.Web3Provider(farcasterProvider);
+  console.log("✅ Farcaster ile bağlanılıyor...");
+} else if (window.ethereum) {
+  provider = new ethers.providers.Web3Provider(window.ethereum);
+  console.log("✅ MetaMask ile bağlanılıyor...");
+} else {
+  alert("⛔️ Wallet bulunamadı (Farcaster ya da MetaMask).");
+  return;
+}
+
 
   provider = new ethers.providers.Web3Provider(window.ethereum);
   ...
