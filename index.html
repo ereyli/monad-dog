@@ -504,13 +504,7 @@ if (farcasterProvider) {
   alert("⛔️ Wallet bulunamadı (Farcaster ya da MetaMask).");
   return;
 }
-
-
-  provider = new ethers.providers.Web3Provider(window.ethereum);
-  ...
-}
-
-
+      
       try {
         // Request account access
         provider = new ethers.providers.Web3Provider(window.ethereum);
