@@ -492,18 +492,22 @@
   const MONAD_TESTNET_CHAIN_ID = 10143;
   const targetNetworkName = "Monad Testnet";
 
- const farcasterProvider = window.sdk?.wallet?.getEthereumProvider?.();
+window.addEventListener("DOMContentLoaded", async () => {
+  sdk.actions.ready();
+  try {
+    const farcasterAddress = await sdk.signer.getAddress();
+    const farcasterProvider = sdk.wallet.getEthereumProvider();
+    if (farcasterProvider) {
+      window.farcasterProvider = farcasterProvider;
+      console.log("✅ Farcaster provider is ready:", farcasterAddress);
+    } else {
+      console.warn("❌ Farcaster provider not found.");
+    }
+  } catch (e) {
+    console.warn("⚠️ Farcaster error:", e);
+  }
+});
 
-if (farcasterProvider) {
-  provider = new ethers.providers.Web3Provider(farcasterProvider);
-  console.log("✅ Farcaster ile bağlanılıyor...");
-} else if (window.ethereum) {
-  provider = new ethers.providers.Web3Provider(window.ethereum);
-  console.log("✅ MetaMask ile bağlanılıyor...");
-} else {
-  alert("⛔️ Wallet bulunamadı (Farcaster ya da MetaMask).");
-  return;
-}
       
       try {
         // Request account access
