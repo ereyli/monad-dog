@@ -23,6 +23,12 @@
   <title>Monad Test App</title>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+  <script type="module">
+    import { sdk } from 'https://esm.sh/@farcaster/frame-sdk';
+    import { farcasterFrame } from 'https://esm.sh/@farcaster/frame-wagmi-connector';
+    window.sdk = sdk;
+    window.farcasterFrameConnector = farcasterFrame;
+  </script>
   <style>
     html {
       box-sizing: border-box;
@@ -471,12 +477,47 @@
     let provider, signer, userAddress, flipContract;
     let userXP = 0;
     let isConnected = false;
+    let isFarcasterWallet = false;
+
+    // Farcaster context bilgilerini almak için
+    async function getFarcasterContext() {
+      try {
+        if (typeof window.sdk !== 'undefined') {
+          // Farcaster context verilerini al
+          const context = window.sdk.context;
+          console.log("Farcaster context:", context);
+          
+          // Kullanıcı bilgilerini kontrol et
+          if (context && context.user && context.user.fid) {
+            document.getElementById("xpCounter").innerText = context.user.fid; // FID'i XP olarak göster
+            
+            if (context.user.username) {
+              // Kullanıcı adını göster
+              const btn = document.getElementById("connectBtn");
+              btn.innerHTML = `<span class="button-icon">🟢</span> @${context.user.username}`;
+              
+              // Kullanıcı profil fotoğrafı varsa göster
+              if (context.user.pfp) {
+                // Profil fotoğrafı işlemleri buraya eklenebilir
+              }
+            }
+          }
+          
+          return context;
+        }
+      } catch (e) {
+        console.error("Failed to get Farcaster context:", e);
+        return null;
+      }
+      return null;
+    }
 
     function disconnect() {
       provider = null;
       signer = null;
       userAddress = null;
       isConnected = false;
+      isFarcasterWallet = false;
       document.getElementById("connectBtn").innerHTML = '<span class="button-icon">🔌</span> Connect Wallet';
     }
 
@@ -485,7 +526,76 @@
         disconnect();
         return;
       }
-      await connect();
+      
+      // Farcaster Mini App içinde çalışıp çalışmadığını kontrol et
+      const isFarcasterEnvironment = await checkFarcasterEnvironment();
+      
+      if (isFarcasterEnvironment) {
+        // Farcaster cüzdanını kullan
+        await connectFarcasterWallet();
+      } else {
+        // Normal web3 cüzdanı kullan
+        await connect();
+      }
+    }
+    
+    async function checkFarcasterEnvironment() {
+      try {
+        // sdk global olarak tanımlı mı kontrol et
+        if (typeof window.sdk !== 'undefined') {
+          const context = await getFarcasterContext();
+          // context bilgisi varsa Farcaster Mini App içindeyiz
+          return context !== null;
+        }
+      } catch (e) {
+        console.log("Not in Farcaster environment:", e);
+        return false;
+      }
+      return false;
+    }
+
+    async function connectFarcasterWallet() {
+      try {
+        // Farcaster wallet provider'ı al
+        if (typeof window.sdk !== 'undefined' && window.sdk.wallet && window.sdk.wallet.ethProvider) {
+          // Farcaster cüzdanını kullan
+          provider = new ethers.providers.Web3Provider(window.sdk.wallet.ethProvider);
+          
+          // Signer ve adres bilgilerini al
+          signer = provider.getSigner();
+          userAddress = await signer.getAddress();
+          console.log("Connected to Farcaster wallet:", userAddress);
+          
+          // Sözleşmeleri tanımla
+          flipContract = new ethers.Contract(FLIP_CONTRACT_ADDRESS, FLIP_ABI, signer);
+          
+          // Düğme güncelleme
+          isConnected = true;
+          isFarcasterWallet = true;
+          document.getElementById("connectBtn").innerHTML = `<span class="button-icon">🟢</span> ${userAddress.slice(0, 6)}...${userAddress.slice(-4)}`;
+          
+          // Farcaster kullanıcı bilgilerini al ve göster
+          const context = await getFarcasterContext();
+          if (context && context.user && context.user.username) {
+            document.getElementById("connectBtn").innerHTML = `<span class="button-icon">🟢</span> @${context.user.username}`;
+          }
+          
+          // Leaderboard'da kullanıcıyı vurgula
+          highlightUserOnLeaderboard();
+          
+          // Başarılı bağlantı mesajı
+          console.log("Farcaster wallet connected successfully!");
+          return true;
+        } else {
+          console.log("Farcaster wallet not available, using regular connect");
+          // Farcaster cüzdanı yoksa normal bağlantıya geri dön
+          return await connect();
+        }
+      } catch (error) {
+        console.error("Farcaster wallet connection error:", error);
+        alert("Farcaster wallet connection failed: " + (error.message || "Unknown error"));
+        return false;
+      }
     }
 
     async function connect() {
@@ -585,6 +695,23 @@
       document.getElementById(id).classList.add('active');
     }
 
+    // Farcaster ile işlem gönderme için yardımcı fonksiyon
+    async function sendTransactionWithFarcaster(contract, method, args = [], options = {}) {
+      // Standart gas limit ve diğer ayarlar
+      const defaultOptions = { gasLimit: 1000000 };
+      const txOptions = { ...defaultOptions, ...options };
+      
+      try {
+        // İşlemi çağır
+        const tx = await contract[method](...args, txOptions);
+        console.log(`${method} transaction hash:`, tx.hash);
+        return tx;
+      } catch (error) {
+        console.error(`${method} transaction error:`, error);
+        throw error;
+      }
+    }
+
     async function flipMonad() {
       if (!isConnected) {
         alert("Connect wallet first");
@@ -610,10 +737,16 @@
         // Re-create contract with current signer to ensure it's properly connected
         const flipContract = new ethers.Contract(FLIP_CONTRACT_ADDRESS, FLIP_ABI, signer);
         
-        // Set gas limit explicitly
-        const tx = await flipContract.flip({ 
-          gasLimit: 1000000  // Explicitly set higher gas limit
-        });
+        // İşlemi Farcaster cüzdanı veya normal cüzdan ile gönder
+        let tx;
+        if (isFarcasterWallet) {
+          tx = await sendTransactionWithFarcaster(flipContract, "flip");
+        } else {
+          // Set gas limit explicitly
+          tx = await flipContract.flip({ 
+            gasLimit: 1000000  // Explicitly set higher gas limit
+          });
+        }
         
         // Show transaction hash
         console.log("Transaction hash:", tx.hash);
@@ -668,10 +801,16 @@
         // Re-create contract with current signer to ensure it's properly connected
         const petContract = new ethers.Contract(PET_CONTRACT_ADDRESS, PET_ABI, signer);
         
-        // Set gas limit explicitly
-        const tx = await petContract.pet({ 
-          gasLimit: 1000000  // Explicitly set higher gas limit
-        });
+        // İşlemi Farcaster cüzdanı veya normal cüzdan ile gönder
+        let tx;
+        if (isFarcasterWallet) {
+          tx = await sendTransactionWithFarcaster(petContract, "pet");
+        } else {
+          // Set gas limit explicitly
+          tx = await petContract.pet({ 
+            gasLimit: 1000000  // Explicitly set higher gas limit
+          });
+        }
         
         // Show transaction hash
         console.log("Pet transaction hash:", tx.hash);
@@ -720,10 +859,16 @@
         // Re-create contract with current signer to ensure it's properly connected
         const greetContract = new ethers.Contract(GREET_CONTRACT_ADDRESS, GREET_ABI, signer);
         
-        // Set gas limit explicitly
-        const tx = await greetContract.gm({ 
-          gasLimit: 1000000  // Explicitly set higher gas limit
-        });
+        // İşlemi Farcaster cüzdanı veya normal cüzdan ile gönder
+        let tx;
+        if (isFarcasterWallet) {
+          tx = await sendTransactionWithFarcaster(greetContract, "gm");
+        } else {
+          // Set gas limit explicitly
+          tx = await greetContract.gm({ 
+            gasLimit: 1000000  // Explicitly set higher gas limit
+          });
+        }
         
         // Show transaction hash
         console.log("GM transaction hash:", tx.hash);
@@ -786,10 +931,16 @@
         // Re-create contract with current signer to ensure it's properly connected
         const greetContract = new ethers.Contract(GREET_CONTRACT_ADDRESS, GREET_ABI, signer);
         
-        // Set gas limit explicitly
-        const tx = await greetContract.gn({ 
-          gasLimit: 1000000  // Explicitly set higher gas limit
-        });
+        // İşlemi Farcaster cüzdanı veya normal cüzdan ile gönder
+        let tx;
+        if (isFarcasterWallet) {
+          tx = await sendTransactionWithFarcaster(greetContract, "gn");
+        } else {
+          // Set gas limit explicitly
+          tx = await greetContract.gn({ 
+            gasLimit: 1000000  // Explicitly set higher gas limit
+          });
+        }
         
         // Show transaction hash
         console.log("GN transaction hash:", tx.hash);
@@ -928,17 +1079,46 @@
     }
 
     // Initialize when DOM is loaded
-    window.addEventListener('DOMContentLoaded', () => {
+    window.addEventListener('DOMContentLoaded', async () => {
       document.getElementById("connectBtn").onclick = handleWalletConnection;
       populateLeaderboard();
+      
+      // Farcaster Mini App ortamında otomatik bağlan
+      const isFarcasterEnvironment = await checkFarcasterEnvironment();
+      if (isFarcasterEnvironment) {
+        console.log("Automatically connecting to Farcaster wallet...");
+        await connectFarcasterWallet();
+      }
     });
   </script>
-</body>
-</html>
-<script type="module">
-  import { sdk } from 'https://esm.sh/@farcaster/frame-sdk';
 
-  window.addEventListener('DOMContentLoaded', () => {
-    sdk.actions.ready();
-  });
-</script>
+  <script type="module">
+    import { sdk } from 'https://esm.sh/@farcaster/frame-sdk';
+    import { farcasterFrame } from 'https://esm.sh/@farcaster/frame-wagmi-connector';
+
+    window.sdk = sdk; // Global olarak erişim için 
+    window.farcasterFrameConnector = farcasterFrame;
+
+    window.addEventListener('DOMContentLoaded', async () => {
+      try {
+        // Splash ekranını kaldır
+        await sdk.actions.ready();
+        
+        // SDK context bilgisini konsola yazdır
+        console.log("Farcaster SDK initialized with context:", sdk.context);
+        
+        // Farcaster cüzdan varlığını kontrol et
+        if (sdk.wallet && sdk.wallet.ethProvider) {
+          console.log("Farcaster wallet detected");
+        }
+        
+        // Client bilgilerini göster
+        if (sdk.context && sdk.context.client) {
+          console.log("Client info:", sdk.context.client);
+        }
+      } catch (error) {
+        console.error("Error initializing Farcaster SDK:", error);
+      }
+    });
+  </script>
+</body>        
