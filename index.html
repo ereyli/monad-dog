@@ -491,11 +491,14 @@
     async function connect() {
       const MONAD_TESTNET_CHAIN_ID = 10143;
       const targetNetworkName = "Monad Testnet";
-
-      if (!window.ethereum) {
-        alert("MetaMask is not installed");
-        return;
-      }
+if (!window.ethereum && window.sdk?.wallet) {
+  try {
+    window.ethereum = window.sdk.wallet.getEthereumProvider();
+    console.log("Farcaster provider injected");
+  } catch (e) {
+    console.warn("Farcaster provider injection failed:", e);
+  }
+}
 
       try {
         // Request account access
