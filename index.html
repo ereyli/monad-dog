@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Monad Dog</title>
+
+<!-- Crypto polyfill for older browsers -->
+<script>
+// Polyfill for crypto.randomUUID and crypto.getRandomValues
+if (!crypto.getRandomValues) {
+  crypto.getRandomValues = function(array) {
+    for (let i = 0; i < array.length; i++) {
+      array[i] = Math.floor(Math.random() * 256);
+    }
+    return array;
+  };
+}
+
+if (!crypto.randomUUID) {
+  crypto.randomUUID = function() {
+    return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
+      (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
+    );
+  };
+}
+</script>
+
+<!-- Ethers.js for blockchain interactions - Load first -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js" type="application/javascript"></script>
+
+<!-- Check if ethers loaded -->
+<script>
+window.addEventListener('load', function() {
+  if (typeof ethers === 'undefined') {
+    console.error('❌ Ethers.js failed to load from CDN, trying alternative...');
+    // Try alternative CDN
+    const script = document.createElement('script');
+    script.src = 'https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js';
+    script.onload = function() {
+      console.log('✅ Ethers.js loaded from alternative CDN');
+    };
+    script.onerror = function() {
+      console.error('❌ All ethers.js CDNs failed');
+    };
+    document.head.appendChild(script);
+  } else {
+    console.log('✅ Ethers.js loaded successfully');
+  }
+});
+</script>
+
+<!-- Supabase Client -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<!-- Farcaster Manifest Link -->
+<link href="https://monad-snowy.vercel.app/.well-known/icon.png" rel="icon" type="image/png"/>
+<!-- Farcaster Meta with Dynamic Content -->
+<meta content='{
+    "version": "next",
+    "imageUrl": "https://monad-snowy.vercel.app/.well-known/share.png",
+    "button": {
+      "title": "🐕 Play Monad Dog",
+      "action": {
+        "type": "launch_frame",
+        "url": "https://monad-snowy.vercel.app",
+        "name": "Monad Dog",
+        "splashImageUrl": "https://monad-snowy.vercel.app/.well-known/icon.png",
+        "splashBackgroundColor": "#1e003e"
+      }
+    }
+  }' name="fc:frame">
+<!-- Open Graph for better sharing -->
+<meta content="Monad Dog - Pet, Greet, Flip on Monad Testnet" property="og:title">
+<meta content="Interactive Farcaster Mini App on Monad Testnet. Pet the dog, say GM/GN, flip coins and earn XP!" property="og:description"/>
+<meta content="https://monad-snowy.vercel.app/.well-known/share.png" property="og:image"/>
+<meta content="https://monad-snowy.vercel.app" property="og:url"/>
+<meta content="website" property="og:type"/>
+<meta content="summary_large_image" name="twitter:card"/>
+<meta content="Monad Dog - Pet, Greet, Flip on Monad Testnet" name="twitter:title"/>
+<meta content="Interactive Farcaster Mini App on Monad Testnet. Pet the dog, say GM/GN, flip coins and earn XP!" name="twitter:description"/>
+<meta content="https://monad-snowy.vercel.app/.well-known/share.png" name="twitter:image"/>
+
+<link href="style.css" rel="stylesheet"/></head>
+<body>
+<div class="container app-content">
+<div class="header">
+<div class="title">🐕 Monad Dog</div>
+<div class="xp">✨ XP: <span id="xp">0</span></div>
+<div class="network-indicator" id="networkIndicator" style="font-size: 12px; opacity: 0.7; margin-left: 10px;">
+  Network: <span id="currentNetwork">Not Connected</span>
+</div>
+<!-- Demo UI Elements -->
+<div style="display: none;">
+  <span id="monBalance">1.0</span>
+  <span id="xpBalance">0</span>
+  <span id="spinLeft">10</span>
+  <span id="walletDogDisplay">0</span>
+</div>
+<a class="social-link" href="https://x.com/monaddogg" target="_blank" title="Follow us on Twitter">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+<path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"></path>
+</svg>
+</a>
+</div>
+<div class="wallet-section">
+<div id="connect-area">
+<button id="connect-btn">🟣 Connect Wallet</button>
+</div>
+<div id="connected-area" style="display: none;">
+<div>🟣 Connected</div>
+<div class="address" id="address"></div>
+<button id="disconnect-btn">Disconnect</button>
+</div>
+</div>
+<div class="tabs">
+<button class="tab active" onclick="showTab('pet')">🐕 Pet</button>
+<button class="tab" onclick="showTab('greet')">👋 Greet</button>
+<button class="tab" onclick="showTab('flip')">🪙 Flip</button>
+<button class="tab" onclick="showTab('slots')">🎰 Slots</button>
+<button class="tab" onclick="showTab('claim')">💰 Claim</button>
+</div>
+<div class="content">
+<!-- Pet Tab -->
+<div class="tab-content active" id="pet">
+<h3>Pet the Dog</h3>
+<img alt="Dog" class="dog-image" id="dog-img" src="https://placedog.net/400/300?id=7"/>
+<button onclick="petDog()">👋 Pet Dog (+10 XP)</button>
+<div class="status" id="pet-status"></div>
+<div class="share-section">
+<button class="share-button" onclick="sharePetAchievement()">
+            🐕 Share Pet Achievement
+          </button>
+</div>
+</div>
+<!-- Greet Tab -->
+<div class="tab-content" id="greet">
+<h3>Greet Community</h3>
+<p>Say GM or GN to the community!</p>
+<button onclick="sayGM()">☀️ Good Morning (+5 XP)</button>
+<button onclick="sayGN()">🌙 Good Night (+5 XP)</button>
+<div class="status" id="greet-status"></div>
+<div class="share-section">
+<button class="share-button" onclick="shareGreetAchievement()">
+            👋 Share Community Spirit
+          </button>
+</div>
+</div>
+<!-- Flip Tab -->
+<div class="tab-content" id="flip">
+<h3>Flip Coin</h3>
+<div class="coin" id="coin">🪙</div>
+<button onclick="flipCoin()">🎲 Flip Coin (+3 XP)</button>
+<div id="flip-result">Result will appear here</div>
+<div class="status" id="flip-status"></div>
+<div class="share-section">
+<button class="share-button" onclick="shareFlipAchievement()">
+            🪙 Share Lucky Moment
+          </button>
+</div>
+</div>
+<!-- Slots Tab -->
+<div class="tab-content" id="slots">
+<h3>🐕 Dog Slots</h3>
+<p style="margin-bottom: 20px;">Spin the slots and match dog breeds to win XP!</p>
+
+<div class="slot-machine">
+  <div class="slot-reels">
+    <div class="reel" id="reel-0">
+      <div class="reel-symbol center" id="reel-0-1">🐕</div>
+    </div>
+    <div class="reel" id="reel-1">
+      <div class="reel-symbol center" id="reel-1-1">🐕</div>
+    </div>
+    <div class="reel" id="reel-2">
+      <div class="reel-symbol center" id="reel-2-1">🐕</div>
+    </div>
+    <div class="reel" id="reel-3">
+      <div class="reel-symbol center" id="reel-3-1">🐕</div>
+    </div>
+    <div class="slot-win-line"></div>
+  </div>
+  <div class="slot-controls">
+    <button class="spin-button" id="spinButton" onclick="spinSlots()">🎰 SPIN SLOTS</button>
+  </div>
+</div>
+<div class="slot-description">
+  <h3>Dog Slots</h3>
+  <p>Spin the reels and match 4 dog breeds or bones in a row to win big XP rewards!<br>
+  <span class="desc-highlight">4x Bone = 15,000 XP &nbsp;|&nbsp; 4x Same Dog = 10,000 XP &nbsp;|&nbsp; 3x Same Dog = 5,000 XP</span></p>
+</div>
+<div class="slot-result" id="slotResult">
+  <div class="result-message" id="slotResultMessage">Spin to win!</div>
+  <div class="win-amount" id="slotWinAmount"></div>
+</div>
+<div class="status" id="slots-status"></div>
+<div class="share-section">
+  <button class="share-button" onclick="shareSlotWin()">
+    🎰 Share Big Win
+  </button>
+</div>
+</div>
+<!-- Claim Tab -->
+<div class="tab-content" id="claim">
+<h3>Claim $DOG Tokens</h3>
+<p style="margin-bottom: 20px;">Convert your earned XP to $DOG tokens!</p>
+<div class="claim-section">
+<div class="claim-info">
+<div class="claim-info-item">
+<div class="claim-info-label">Available XP</div>
+<div class="claim-info-value" id="claimableXP">0</div>
+</div>
+<div class="claim-info-item">
+<div class="claim-info-label">→</div>
+<div style="font-size: 30px;">🔄</div>
+</div>
+<div class="claim-info-item">
+<div class="claim-info-label">$DOG Tokens</div>
+<div class="claim-info-value" id="claimableDOG">0</div>
+</div>
+</div>
+<button class="claim-button" disabled="" id="claimButton" onclick="demoClaim()">
+            💰 Claim $DOG Tokens
+          </button>
+<div class="conversion-rate">
+            Conversion Rate: 10 XP = 1 $DOG
+          </div>
+<div class="status" id="claim-status"></div>
+</div>
+<!-- Token Info -->
+<div style="margin-top: 20px; padding: 15px; background: rgba(255,255,255,0.05); border-radius: 12px;">
+<div style="text-align: center; margin-bottom: 15px;">
+<h4 style="margin-bottom: 10px;">🐕 $DOG Token Info</h4>
+<p style="font-size: 12px; opacity: 0.7;">Claim your tokens and they'll be minted directly to your wallet</p>
+</div>
+<!-- Wallet DOG Balance Display -->
+<div style="background: linear-gradient(135deg, #f59e0b, #eab308); padding: 20px; border-radius: 12px; text-align: center; margin: 15px 0;">
+<div style="font-size: 14px; opacity: 0.9; margin-bottom: 5px;">Your Wallet Balance</div>
+<div style="font-size: 32px; font-weight: 700;">
+<span id="walletDogDisplay">0</span> $DOG
+            </div>
+<div style="font-size: 12px; opacity: 0.8; margin-top: 5px;">🪙 Monad Testnet</div>
+</div>
+<div style="margin-top: 15px; text-align: center;">
+<a class="share-button" href="https://testnet.monadscan.com/address/0x1f6649d028c4c146c050a9b224115a01c92a02f3" style="background: rgba(255,255,255,0.1); font-size: 12px; padding: 8px 16px;" target="_blank">
+              🔍 View Token Contract
+            </a>
+</div>
+</div>
+</div>
+</div>
+<div class="loading" id="loading">
+<div class="loading-spinner"></div>
+<div class="loading-text">Loading Monad Dog...</div>
+<div class="loading-subtitle">Starting Monad Dog...<br/>🚀 Initializing blockchain connection</div>
+<div class="loading-progress">
+<div class="loading-progress-bar" id="loadingProgressBar"></div>
+</div>
+</div>
+<!-- Achievement Modal -->
+<div class="achievement-modal" id="achievementModal" onclick="if(event.target === this) closeAchievementModal()">
+<div class="achievement-content">
+<button class="close-modal" onclick="closeAchievementModal()">×</button>
+<div class="achievement-icon" id="achievementIcon">🎉</div>
+<h3 id="achievementTitle">Achievement Unlocked!</h3>
+<p id="achievementDescription">You did something awesome!</p>
+<div style="margin-top: 20px;">
+<button class="share-button" onclick="shareCurrentAchievement()">
+            📢 Share on Farcaster
+          </button>
+<button class="share-button" onclick="closeAchievementModal()" style="background: rgba(255,255,255,0.2);">
+            ✨ Continue Playing
+          </button>
+</div>
+</div>
+</div>
+</div>
+
+<script type="module" src="app.js"></script>
+</html>
