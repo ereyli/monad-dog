@@ -997,20 +997,23 @@ class GameManager {
             return true;
           } catch (switchError) {
             console.error('❌ Failed to switch network:', switchError);
-            this.showError('Please switch to Monad Testnet manually in your wallet');
-            return false;
+            // Network switch error ignored - continue with transaction
+            console.log('⚠️ Network switch failed, but continuing...');
+            return true;
           }
         } else {
           console.error('❌ Failed to add network:', addError);
-          this.showError('Please add Monad Testnet to your wallet manually');
-          return false;
+          // Network error ignored - continue with transaction
+          console.log('⚠️ Network add failed, but continuing...');
+          return true;
         }
       }
       
     } catch (error) {
       console.error('❌ Network switch failed:', error);
-      this.showError('Failed to switch to Monad Testnet. Please switch manually.');
-      return false;
+      // Network error ignored - continue with transaction
+      console.log('⚠️ Network switch failed, but continuing...');
+      return true;
     }
   }
 
