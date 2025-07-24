@@ -78,7 +78,19 @@ class APIService {
       return xp;
     } catch (error) {
       console.error('Failed to get XP from Supabase:', error);
-      return 0; // Return 0 if API fails
+      
+      // Try localStorage as fallback
+      try {
+        const localXP = localStorage.getItem(`wallet_xp_${address}`);
+        if (localXP) {
+          console.log('📦 XP loaded from localStorage fallback');
+          return parseInt(localXP) || 0;
+        }
+      } catch (localError) {
+        console.warn('localStorage fallback failed:', localError);
+      }
+      
+      return 0; // Return 0 if all methods fail
     }
   }
 
@@ -229,7 +241,19 @@ class APIService {
       return progress;
     } catch (error) {
       console.error('Failed to get challenges from Supabase:', error);
-      return {}; // Return empty object if API fails (like XP)
+      
+      // Try localStorage as fallback
+      try {
+        const localProgress = localStorage.getItem(`challenge_progress_${address}`);
+        if (localProgress) {
+          console.log('📦 Challenge progress loaded from localStorage fallback');
+          return JSON.parse(localProgress) || {};
+        }
+      } catch (localError) {
+        console.warn('localStorage fallback failed:', localError);
+      }
+      
+      return {}; // Return empty object if all methods fail
     }
   }
 
@@ -286,7 +310,19 @@ class APIService {
       return dailyStats;
     } catch (error) {
       console.error('Failed to get daily stats from Supabase:', error);
-      return {}; // Return empty object if API fails (like XP)
+      
+      // Try localStorage as fallback
+      try {
+        const localStats = localStorage.getItem(`daily_stats_${address}`);
+        if (localStats) {
+          console.log('📦 Daily stats loaded from localStorage fallback');
+          return JSON.parse(localStats) || {};
+        }
+      } catch (localError) {
+        console.warn('localStorage fallback failed:', localError);
+      }
+      
+      return {}; // Return empty object if all methods fail
     }
   }
 

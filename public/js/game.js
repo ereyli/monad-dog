@@ -2395,6 +2395,16 @@ class GameManager {
       
     } catch (error) {
       console.error('❌ Error loading user data:', error);
+      
+      // Don't show error for network issues, just log
+      if (error.message.includes('Failed to fetch') || error.message.includes('ERR_BLOCKED_BY_CLIENT')) {
+        console.warn('⚠️ Network issue detected, using fallback data');
+        // Continue with default values
+        this.appState.xp = 0;
+        this.appState.challengeProgress = {};
+        this.appState.dailyStats = {};
+        this.appState.ownedDogs = [];
+      }
     }
   }
 
