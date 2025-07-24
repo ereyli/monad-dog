@@ -52,10 +52,12 @@ app.use(helmet({
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
     ? ['https://monad-snowy.vercel.app', 'https://your-production-domain.vercel.app']
-    : ['http://localhost:8000', 'http://localhost:3000', 'https://monad-snowy.vercel.app'],
+    : ['http://localhost:8000', 'http://localhost:3000', 'http://localhost:3001', 'https://monad-snowy.vercel.app'],
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Cache-Control', 'Pragma'],
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 }));
 app.use(express.json());
 

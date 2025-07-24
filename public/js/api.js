@@ -7,26 +7,46 @@ class APIService {
     this.updateQueue = new Map(); // Queue for batched updates
   }
 
-  // Generic request method
-  async request(endpoint, options = {}) {
-    try {
-      const url = `${this.baseURL}${endpoint}`;
-      const response = await fetch(url, {
-        headers: {
-          'Content-Type': 'application/json',
-          ...options.headers
-        },
-        ...options
-      });
+  // Generic request method with retry logic
+  async request(endpoint, options = {}, retries = 3) {
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        const url = `${this.baseURL}${endpoint}`;
+        
+        // Add cache busting for GET requests
+        const finalUrl = options.method === 'GET' 
+          ? `${url}${url.includes('?') ? '&' : '?'}_t=${Date.now()}`
+          : url;
+        
+        const response = await fetch(finalUrl, {
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache',
+            ...options.headers
+          },
+          mode: 'cors',
+          credentials: 'same-origin',
+          ...options
+        });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        return await response.json();
+      } catch (error) {
+        console.warn(`API request attempt ${attempt}/${retries} failed:`, error.message);
+        
+        // If it's the last attempt, throw the error
+        if (attempt === retries) {
+          console.error('API request failed after all retries:', error);
+          throw error;
+        }
+        
+        // Wait before retrying (exponential backoff)
+        await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 100));
       }
-
-      return await response.json();
-    } catch (error) {
-      console.error('API request failed:', error);
-      throw error;
     }
   }
 

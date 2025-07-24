@@ -366,7 +366,13 @@ class GameManager {
         console.log('✅ XP batch saved to Supabase successfully');
       } catch (error) {
         console.error('❌ Failed to save XP to Supabase:', error.message);
-        this.showError('Failed to save XP. Please try again.');
+        
+        // Don't show error for network issues, just log
+        if (error.message.includes('Failed to fetch') || error.message.includes('ERR_BLOCKED_BY_CLIENT')) {
+          console.warn('⚠️ Network issue detected, XP will be saved on next successful connection');
+        } else {
+          this.showError('Failed to save XP. Please try again.');
+        }
       }
     }, 2000);
   }
@@ -582,6 +588,11 @@ class GameManager {
       console.log('✅ Challenge progress saved successfully');
     } catch (error) {
       console.error('❌ Failed to save challenge progress:', error);
+      
+      // Don't show error for network issues, just log
+      if (error.message.includes('Failed to fetch') || error.message.includes('ERR_BLOCKED_BY_CLIENT')) {
+        console.warn('⚠️ Network issue detected, progress will be saved on next successful connection');
+      }
     }
     
     // Check for challenge completions
