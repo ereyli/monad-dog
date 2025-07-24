@@ -261,6 +261,42 @@ module.exports = async (req, res) => {
       return;
     }
 
+    // Collection endpoints
+    if (path.startsWith('/collection/') && req.method === 'GET') {
+      const address = path.split('/')[2];
+      if (!address || !/^0x[a-fA-F0-9]{40}$/.test(address)) {
+        res.status(400).json({ error: 'Invalid wallet address' });
+        return;
+      }
+
+      // For now, return empty collection since we don't have a collection table yet
+      // TODO: Implement collection table in Supabase
+      console.log(`📦 Collection request for ${address}`);
+      
+      res.json([]);
+      return;
+    }
+
+    if (path.startsWith('/collection/') && req.method === 'POST') {
+      const address = path.split('/')[2];
+      const { dogs } = req.body;
+      
+      if (!address || !/^0x[a-fA-F0-9]{40}$/.test(address)) {
+        res.status(400).json({ error: 'Invalid wallet address' });
+        return;
+      }
+
+      // For now, just return success since we don't have a collection table yet
+      // TODO: Implement collection table in Supabase
+      console.log(`📦 Collection update for ${address}:`, { dogs });
+      
+      res.json({ 
+        success: true, 
+        dogs: dogs || []
+      });
+      return;
+    }
+
     // Default response
     res.status(404).json({ error: 'Endpoint not found' });
 
