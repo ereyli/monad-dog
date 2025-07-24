@@ -91,9 +91,9 @@ if (process.env.NODE_ENV === 'production') {
 let supabase = null;
 try {
   const supabaseUrl = process.env.SUPABASE_URL || 'https://uhqszfoekqrjtybrwqzt.supabase.co';
-  const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
+  const supabaseKey = process.env.SUPABASE_ANON_KEY;
   
-  if (supabaseUrl && supabaseKey && supabaseKey !== 'your_service_key_here') {
+  if (supabaseUrl && supabaseKey && supabaseKey !== 'your-supabase-anon-key-here') {
     supabase = createClient(supabaseUrl, supabaseKey);
     console.log('✅ Supabase connected');
   } else {
