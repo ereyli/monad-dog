@@ -3,7 +3,7 @@ const { createClient } = require('@supabase/supabase-js');
 
 // Initialize Supabase
 const supabaseUrl = 'https://uhqszfoekqrjtybrwqzt.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVocXN6Zm9la3FyanR5YnJ3cXp0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzI5NzI5NzAsImV4cCI6MjA0ODU0ODk3MH0.Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8';
+const supabaseKey = process.env.SUPABASE_ANON_KEY || 'your-supabase-anon-key-here';
 
 let supabase = null;
 let supabaseStatus = 'disconnected';
@@ -11,6 +11,15 @@ let supabaseStatus = 'disconnected';
 const initializeSupabase = async () => {
   try {
     console.log('🔧 Initializing Supabase connection...');
+    console.log('🔑 URL:', supabaseUrl);
+    console.log('🔑 Key:', supabaseKey ? `${supabaseKey.substring(0, 20)}...` : 'Missing');
+    
+    if (!supabaseKey || supabaseKey === 'your-supabase-anon-key-here') {
+      console.log('⚠️ Supabase key not configured');
+      supabaseStatus = 'no_credentials';
+      return;
+    }
+    
     supabase = createClient(supabaseUrl, supabaseKey);
     
     // Test connection with timeout
@@ -27,6 +36,7 @@ const initializeSupabase = async () => {
     
     if (error) {
       console.log('⚠️ Supabase connection failed:', error.message);
+      console.log('🔍 Error details:', error);
       supabaseStatus = 'connection_failed';
       supabase = null;
     } else {
@@ -35,6 +45,7 @@ const initializeSupabase = async () => {
     }
   } catch (error) {
     console.log('⚠️ Supabase initialization failed:', error.message);
+    console.log('🔍 Full error:', error);
     supabaseStatus = 'error';
     supabase = null;
   }

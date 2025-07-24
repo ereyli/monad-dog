@@ -108,6 +108,10 @@
                     results.innerHTML = `
                         <div class="status success">
                             <strong>✅ Health endpoint successful!</strong><br>
+                            <strong>Status:</strong> ${data.status}<br>
+                            <strong>Supabase:</strong> ${data.supabase}<br>
+                            <strong>Version:</strong> ${data.version}<br>
+                            <strong>Message:</strong> ${data.message}<br>
                             <pre>${JSON.stringify(data, null, 2)}</pre>
                         </div>
                     `;
