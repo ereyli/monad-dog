@@ -164,7 +164,7 @@ This project is licensed under the MIT License.
 
 ## 🔗 Links
 
-- **Live Demo**: https://monad-dog.vercel.app/
+- **Live Demo**: https://monad-snowy.vercel.app/
 - **X (Twitter)**: https://x.com/monaddogg
 - **Monad**: https://monad.xyz/
 - **Farcaster**: https://farcaster.xyz/ 
