@@ -13,11 +13,17 @@ const initializeSupabase = async () => {
     console.log('🔧 Initializing Supabase connection...');
     supabase = createClient(supabaseUrl, supabaseKey);
     
-    // Test connection
-    const { data, error } = await supabase
+    // Test connection with timeout
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Timeout')), 5000)
+    );
+    
+    const testPromise = supabase
       .from('user_xp')
       .select('count')
       .limit(1);
+    
+    const { data, error } = await Promise.race([testPromise, timeoutPromise]);
     
     if (error) {
       console.log('⚠️ Supabase connection failed:', error.message);
@@ -34,9 +40,6 @@ const initializeSupabase = async () => {
   }
 };
 
-// Initialize on module load
-initializeSupabase();
-
 // CORS headers
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -47,29 +50,35 @@ const corsHeaders = {
 
 // Main handler
 module.exports = async (req, res) => {
-  // Handle CORS preflight
-  if (req.method === 'OPTIONS') {
-    res.set(corsHeaders);
-    res.status(200).end();
-    return;
-  }
-
-  // Set CORS headers
-  res.set(corsHeaders);
-
-  const { pathname } = new URL(req.url, `http://${req.headers.host}`);
-  const path = pathname.replace('/api', '');
-
-  console.log(`📡 API Request: ${req.method} ${path}`);
-
   try {
+    // Handle CORS preflight
+    if (req.method === 'OPTIONS') {
+      res.set(corsHeaders);
+      res.status(200).end();
+      return;
+    }
+
+    // Set CORS headers
+    res.set(corsHeaders);
+
+    const { pathname } = new URL(req.url, `http://${req.headers.host}`);
+    const path = pathname.replace('/api', '');
+
+    console.log(`📡 API Request: ${req.method} ${path}`);
+
+    // Initialize Supabase if not already done
+    if (!supabase) {
+      await initializeSupabase();
+    }
+
     // Health check
     if (path === '/health' && req.method === 'GET') {
       res.json({
         status: 'ok',
         timestamp: new Date().toISOString(),
         supabase: supabaseStatus,
-        version: '1.0.0'
+        version: '1.0.0',
+        message: 'API is working!'
       });
       return;
     }
@@ -87,22 +96,30 @@ module.exports = async (req, res) => {
     // Test Supabase endpoint
     if (path === '/test-supabase' && req.method === 'GET') {
       if (supabase && supabaseStatus === 'connected') {
-        const { data, error } = await supabase
-          .from('user_xp')
-          .select('count')
-          .limit(1);
-        
-        if (error) {
+        try {
+          const { data, error } = await supabase
+            .from('user_xp')
+            .select('count')
+            .limit(1);
+          
+          if (error) {
+            res.json({
+              status: 'error',
+              message: 'Supabase query failed',
+              error: error.message
+            });
+          } else {
+            res.json({
+              status: 'success',
+              message: 'Supabase is working',
+              data: data
+            });
+          }
+        } catch (error) {
           res.json({
             status: 'error',
-            message: 'Supabase query failed',
+            message: 'Supabase test failed',
             error: error.message
-          });
-        } else {
-          res.json({
-            status: 'success',
-            message: 'Supabase is working',
-            data: data
           });
         }
       } else {
@@ -124,20 +141,28 @@ module.exports = async (req, res) => {
       }
 
       if (supabase && supabaseStatus === 'connected') {
-        const { data, error } = await supabase
-          .from('user_xp')
-          .select('xp, updated_at')
-          .eq('wallet_address', address.toLowerCase())
-          .single();
-        
-        if (error && error.code !== 'PGRST116') {
-          console.error('Supabase error:', error);
+        try {
+          const { data, error } = await supabase
+            .from('user_xp')
+            .select('xp, updated_at')
+            .eq('wallet_address', address.toLowerCase())
+            .single();
+          
+          if (error && error.code !== 'PGRST116') {
+            console.error('Supabase error:', error);
+          }
+          
+          res.json({
+            xp: data?.xp || 0,
+            updated_at: data?.updated_at || null
+          });
+        } catch (error) {
+          console.error('XP fetch error:', error);
+          res.json({
+            xp: 0,
+            updated_at: null
+          });
         }
-        
-        res.json({
-          xp: data?.xp || 0,
-          updated_at: data?.updated_at || null
-        });
       } else {
         res.json({
           xp: 0,
@@ -162,18 +187,22 @@ module.exports = async (req, res) => {
       }
 
       if (supabase && supabaseStatus === 'connected') {
-        const { error } = await supabase
-          .from('user_xp')
-          .upsert({
-            wallet_address: address.toLowerCase(),
-            xp: xp,
-            updated_at: new Date().toISOString()
-          }, {
-            onConflict: 'wallet_address'
-          });
-        
-        if (error) {
-          console.error('Supabase error:', error);
+        try {
+          const { error } = await supabase
+            .from('user_xp')
+            .upsert({
+              wallet_address: address.toLowerCase(),
+              xp: xp,
+              updated_at: new Date().toISOString()
+            }, {
+              onConflict: 'wallet_address'
+            });
+          
+          if (error) {
+            console.error('Supabase error:', error);
+          }
+        } catch (error) {
+          console.error('XP update error:', error);
         }
       }
       
@@ -202,6 +231,9 @@ module.exports = async (req, res) => {
 
   } catch (error) {
     console.error('API error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ 
+      error: 'Internal server error',
+      message: error.message 
+    });
   }
 }; 
