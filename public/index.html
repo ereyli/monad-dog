@@ -50,14 +50,16 @@
         console.log('🟣 Initializing Farcaster Mini App SDK...');
         
         // Check if we're in a Farcaster environment
-        if (sdk.isInFrame()) {
+        if (sdk && typeof sdk.isInFrame === 'function' && sdk.isInFrame()) {
           console.log('✅ Running in Farcaster Frame environment');
           
           // Wait for app to be ready, then call ready()
           window.addEventListener('appReady', async () => {
             try {
-              await sdk.actions.ready();
-              console.log('✅ Farcaster app ready - splash screen hidden');
+              if (sdk.actions && typeof sdk.actions.ready === 'function') {
+                await sdk.actions.ready();
+                console.log('✅ Farcaster app ready - splash screen hidden');
+              }
             } catch (error) {
               console.error('❌ Failed to call sdk.actions.ready():', error);
             }
