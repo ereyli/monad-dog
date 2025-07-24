@@ -1,10 +1,5 @@
 // Configuration file - All constants and settings
 const CONFIG = {
-  // API Configuration - Updated to be ad-blocker friendly
-  API_BASE_URL: window.location.hostname === 'localhost' 
-    ? 'http://localhost:3000/api' 
-    : 'https://monad-dog.vercel.app/api',
-  
   // Contract addresses
   CONTRACTS: {
     PET: "0xc53abe4c593b9440407f8ac1b346f3f999e6d8ed",
@@ -56,7 +51,7 @@ const CONFIG = {
     { id: 'border_collie', name: 'Border Collie', rarity: 'epic', xpBonus: 1.7, image: '🐕', unlockCondition: 'flip_50' },
     { id: 'great_dane', name: 'Great Dane', rarity: 'legendary', xpBonus: 2.5, image: '🐕', unlockCondition: 'flip_100' },
     { id: 'pomeranian', name: 'Pomeranian', rarity: 'common', xpBonus: 1.1, image: '🐕', unlockCondition: 'slots_5' },
-    { id: 'labrador', name: 'Labrador', rarity: 'rare', xpBonus: 1.3, image: '🐕', unlockCondition: 'slots_15' },
+    { id: 'labrador', name: 'Labrador', rarity: 'rare', xpBonus: 1.3, image: '🐕', unlockCondition: 'slots_5' },
     { id: 'saint_bernard', name: 'Saint Bernard', rarity: 'epic', xpBonus: 1.8, image: '🐕', unlockCondition: 'slots_30' },
     { id: 'wolf', name: 'Wolf', rarity: 'mythical', xpBonus: 3.0, image: '🐺', unlockCondition: 'slots_50' }
   ],

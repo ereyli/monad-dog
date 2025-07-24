@@ -1,67 +1,15 @@
 // API Service for Monad Dog App
-// Now uses localStorage instead of Supabase for reliability
+// Uses localStorage for all data storage
 
 class APIService {
   constructor() {
-    this.baseURL = CONFIG.API_BASE_URL;
-    this.maxRetries = 3;
-    this.retryDelay = 1000;
-    this.offlineMode = false;
-    this.pendingUpdates = new Map();
-    this.lastUpdate = {};
-    this.cache = new Map();
-    this.connectionTestInterval = null;
+    // No API base URL needed - localStorage only
+    this.offlineMode = false; // Always true now
   }
 
-  // Check if currently in offline mode
+  // Check if currently in offline mode (always true)
   isOffline() {
-    return this.offlineMode;
-  }
-
-  // Enable offline mode
-  enableOfflineMode() {
-    if (!this.offlineMode) {
-      this.offlineMode = true;
-      console.log('🔄 Offline mode enabled - using localStorage');
-      this.startConnectionTest();
-    }
-  }
-
-  // Disable offline mode
-  disableOfflineMode() {
-    if (this.offlineMode) {
-      this.offlineMode = false;
-      console.log('🔄 Offline mode disabled - using API');
-      this.stopConnectionTest();
-    }
-  }
-
-  // Start periodic connection test
-  startConnectionTest() {
-    if (this.connectionTestInterval) {
-      clearInterval(this.connectionTestInterval);
-    }
-    
-    this.connectionTestInterval = setInterval(async () => {
-      try {
-        const response = await fetch(`${this.baseURL}/health`);
-        if (response.ok) {
-          console.log('🔄 API connection restored');
-          this.disableOfflineMode();
-          await this.syncPendingUpdates();
-        }
-      } catch (error) {
-        // API still down, stay in offline mode
-      }
-    }, 30000); // Check every 30 seconds
-  }
-
-  // Stop connection test
-  stopConnectionTest() {
-    if (this.connectionTestInterval) {
-      clearInterval(this.connectionTestInterval);
-      this.connectionTestInterval = null;
-    }
+    return true; // Always use localStorage
   }
 
   // Get data from local storage
@@ -86,36 +34,36 @@ class APIService {
     }
   }
 
-  // Get user XP - ONLY from localStorage
+  // Get user XP from localStorage
   async getUserXP(address) {
     const localXP = this.getLocalData(`xp_${address}`, 0);
     console.log('📦 XP loaded from localStorage:', localXP);
     return localXP;
   }
 
-  // Update user XP - ONLY to localStorage
+  // Update user XP to localStorage
   async updateUserXP(address, xp) {
     this.setLocalData(`xp_${address}`, xp);
     console.log('💾 XP saved to localStorage:', xp);
     return { success: true, xp: xp };
   }
 
-  // Get user stats
+  // Get user stats from localStorage
   async getUserStats(address) {
     return this.getLocalData(`stats_${address}`, {});
   }
 
-  // Get leaderboard
+  // Get leaderboard from localStorage
   async getLeaderboard() {
     return this.getLocalData('leaderboard', []);
   }
 
-  // Health check
+  // Health check (always ok for localStorage)
   async healthCheck() {
     return { status: 'ok', localStorage: true };
   }
 
-  // Collection methods - ONLY from localStorage
+  // Collection methods from localStorage
   async getOwnedDogs(address) {
     const localDogs = this.getLocalData(`collection_${address}`, []);
     console.log('📦 Collection loaded from localStorage:', localDogs);
@@ -128,7 +76,7 @@ class APIService {
     return { success: true, dogs: dogs };
   }
 
-  // Challenge progress methods - ONLY from localStorage
+  // Challenge progress methods from localStorage
   async getChallengeProgress(address) {
     const localProgress = this.getLocalData(`challenges_${address}`, {});
     console.log('📦 Challenge progress loaded from localStorage:', localProgress);
@@ -141,7 +89,7 @@ class APIService {
     return { success: true, progress: progress };
   }
 
-  // Daily stats methods - ONLY from localStorage
+  // Daily stats methods from localStorage
   async getDailyStats(address) {
     const localStats = this.getLocalData(`daily_stats_${address}`, {});
     console.log('📦 Daily stats loaded from localStorage:', localStats);
@@ -176,16 +124,10 @@ class APIService {
     localStorage.setItem(key, total.toString());
   }
 
-  // Test API connection (simplified)
+  // Test connection (always true for localStorage)
   async testConnection() {
     console.log('🧪 Testing localStorage connection...');
     return true; // localStorage is always available
-  }
-
-  // Sync pending updates (not needed for localStorage)
-  async syncPendingUpdates() {
-    console.log('📦 No pending updates to sync (localStorage mode)');
-    return;
   }
 }
 
