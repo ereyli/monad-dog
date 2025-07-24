@@ -53,13 +53,15 @@ module.exports = async (req, res) => {
   try {
     // Handle CORS preflight
     if (req.method === 'OPTIONS') {
-      res.set(corsHeaders);
-      res.status(200).end();
+      res.writeHead(200, corsHeaders);
+      res.end();
       return;
     }
 
     // Set CORS headers
-    res.set(corsHeaders);
+    Object.entries(corsHeaders).forEach(([key, value]) => {
+      res.setHeader(key, value);
+    });
 
     const { pathname } = new URL(req.url, `http://${req.headers.host}`);
     const path = pathname.replace('/api', '');
