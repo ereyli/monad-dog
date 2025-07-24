@@ -231,11 +231,64 @@ module.exports = async (req, res) => {
         return;
       }
 
-      res.json({
-        progress: {},
-        daily_stats: {},
-        last_reset_date: null
-      });
+      if (supabase && supabaseStatus === 'connected') {
+        try {
+          // Get challenge progress
+          const { data: challengeData, error: challengeError } = await supabase
+            .from('challenge_progress')
+            .select('challenge_id, progress, completed')
+            .eq('wallet_address', address.toLowerCase());
+
+          // Get user stats
+          const { data: statsData, error: statsError } = await supabase
+            .from('user_stats')
+            .select('daily_pets, daily_greets, daily_flips, daily_slots, last_reset_date')
+            .eq('wallet_address', address.toLowerCase())
+            .single();
+
+          if (challengeError && challengeError.code !== 'PGRST116') {
+            console.error('Challenge progress error:', challengeError);
+          }
+          if (statsError && statsError.code !== 'PGRST116') {
+            console.error('User stats error:', statsError);
+          }
+
+          // Convert challenge data to progress object
+          const progress = {};
+          if (challengeData) {
+            challengeData.forEach(challenge => {
+              progress[challenge.challenge_id] = challenge.progress;
+            });
+          }
+
+          // Convert stats data to daily_stats object
+          const daily_stats = statsData ? {
+            pets: statsData.daily_pets || 0,
+            greets: statsData.daily_greets || 0,
+            flips: statsData.daily_flips || 0,
+            slots: statsData.daily_slots || 0
+          } : {};
+
+          res.json({
+            progress: progress,
+            daily_stats: daily_stats,
+            last_reset_date: statsData?.last_reset_date || null
+          });
+        } catch (error) {
+          console.error('Challenges fetch error:', error);
+          res.json({
+            progress: {},
+            daily_stats: {},
+            last_reset_date: null
+          });
+        }
+      } else {
+        res.json({
+          progress: {},
+          daily_stats: {},
+          last_reset_date: null
+        });
+      }
       return;
     }
 
@@ -248,16 +301,69 @@ module.exports = async (req, res) => {
         return;
       }
 
-      // For now, just return success since we don't have a challenges table yet
-      // TODO: Implement challenges table in Supabase
-      console.log(`📝 Challenge progress update for ${address}:`, { progress, daily_stats, last_reset_date });
-      
-      res.json({ 
-        success: true, 
-        progress: progress || {},
-        daily_stats: daily_stats || {},
-        last_reset_date: last_reset_date || new Date().toDateString()
-      });
+      if (supabase && supabaseStatus === 'connected') {
+        try {
+          // Update challenge progress
+          if (progress && typeof progress === 'object') {
+            for (const [challengeId, challengeProgress] of Object.entries(progress)) {
+              const { error } = await supabase
+                .from('challenge_progress')
+                .upsert({
+                  wallet_address: address.toLowerCase(),
+                  challenge_id: challengeId,
+                  progress: challengeProgress,
+                  updated_at: new Date().toISOString()
+                }, {
+                  onConflict: 'wallet_address,challenge_id'
+                });
+              
+              if (error) {
+                console.error(`Challenge progress update error for ${challengeId}:`, error);
+              }
+            }
+          }
+
+          // Update user stats
+          if (daily_stats && typeof daily_stats === 'object') {
+            const { error } = await supabase
+              .from('user_stats')
+              .upsert({
+                wallet_address: address.toLowerCase(),
+                daily_pets: daily_stats.pets || 0,
+                daily_greets: daily_stats.greets || 0,
+                daily_flips: daily_stats.flips || 0,
+                daily_slots: daily_stats.slots || 0,
+                last_reset_date: last_reset_date ? new Date(last_reset_date) : new Date(),
+                updated_at: new Date().toISOString()
+              }, {
+                onConflict: 'wallet_address'
+              });
+            
+            if (error) {
+              console.error('User stats update error:', error);
+            }
+          }
+
+          console.log(`📝 Challenge progress update for ${address}:`, { progress, daily_stats, last_reset_date });
+          
+          res.json({ 
+            success: true, 
+            progress: progress || {},
+            daily_stats: daily_stats || {},
+            last_reset_date: last_reset_date || new Date().toDateString()
+          });
+        } catch (error) {
+          console.error('Challenges update error:', error);
+          res.status(500).json({ error: 'Failed to update challenges' });
+        }
+      } else {
+        res.json({ 
+          success: true, 
+          progress: progress || {},
+          daily_stats: daily_stats || {},
+          last_reset_date: last_reset_date || new Date().toDateString()
+        });
+      }
       return;
     }
 
@@ -269,11 +375,30 @@ module.exports = async (req, res) => {
         return;
       }
 
-      // For now, return empty collection since we don't have a collection table yet
-      // TODO: Implement collection table in Supabase
-      console.log(`📦 Collection request for ${address}`);
-      
-      res.json([]);
+      if (supabase && supabaseStatus === 'connected') {
+        try {
+          const { data, error } = await supabase
+            .from('dog_collection')
+            .select('dog_id, unlocked_at')
+            .eq('wallet_address', address.toLowerCase())
+            .order('unlocked_at', { ascending: true });
+
+          if (error) {
+            console.error('Collection fetch error:', error);
+          }
+
+          // Convert to array of dog IDs
+          const dogs = data ? data.map(item => item.dog_id) : [];
+          
+          console.log(`📦 Collection request for ${address}:`, dogs);
+          res.json(dogs);
+        } catch (error) {
+          console.error('Collection fetch error:', error);
+          res.json([]);
+        }
+      } else {
+        res.json([]);
+      }
       return;
     }
 
@@ -286,14 +411,51 @@ module.exports = async (req, res) => {
         return;
       }
 
-      // For now, just return success since we don't have a collection table yet
-      // TODO: Implement collection table in Supabase
-      console.log(`📦 Collection update for ${address}:`, { dogs });
-      
-      res.json({ 
-        success: true, 
-        dogs: dogs || []
-      });
+      if (supabase && supabaseStatus === 'connected') {
+        try {
+          // Clear existing collection
+          const { error: deleteError } = await supabase
+            .from('dog_collection')
+            .delete()
+            .eq('wallet_address', address.toLowerCase());
+
+          if (deleteError) {
+            console.error('Collection delete error:', deleteError);
+          }
+
+          // Insert new dogs
+          if (dogs && Array.isArray(dogs) && dogs.length > 0) {
+            const dogRecords = dogs.map(dogId => ({
+              wallet_address: address.toLowerCase(),
+              dog_id: dogId,
+              unlocked_at: new Date().toISOString()
+            }));
+
+            const { error: insertError } = await supabase
+              .from('dog_collection')
+              .insert(dogRecords);
+
+            if (insertError) {
+              console.error('Collection insert error:', insertError);
+            }
+          }
+
+          console.log(`📦 Collection update for ${address}:`, { dogs });
+          
+          res.json({ 
+            success: true, 
+            dogs: dogs || []
+          });
+        } catch (error) {
+          console.error('Collection update error:', error);
+          res.status(500).json({ error: 'Failed to update collection' });
+        }
+      } else {
+        res.json({ 
+          success: true, 
+          dogs: dogs || []
+        });
+      }
       return;
     }
 
