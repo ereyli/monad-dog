@@ -385,9 +385,9 @@ class GameManager {
     this.xpUpdateTimeout = setTimeout(async () => {
       try {
         await apiService.updateUserXP(this.appState.address, this.appState.xp);
-        console.log('✅ XP batch saved to Supabase successfully');
+        console.log('✅ XP batch saved to localStorage successfully');
       } catch (error) {
-        console.error('❌ Failed to save XP to Supabase:', error.message);
+        console.error('❌ Failed to save XP to localStorage:', error.message);
         
         // Don't show error for network issues, just log
         if (error.message.includes('Failed to fetch') || error.message.includes('ERR_BLOCKED_BY_CLIENT')) {
@@ -603,7 +603,7 @@ class GameManager {
     
     console.log(`📊 New progress - ${type}: ${this.appState.challengeProgress[type]}, daily ${type}s: ${this.appState.dailyStats[type + 's']}`);
     
-    // Save to Supabase with localStorage fallback
+          // Save to localStorage
     try {
       await apiService.setDailyStats(this.appState.address, this.appState.dailyStats, this.appState.challengeProgress);
       console.log('✅ Challenge progress saved successfully');
@@ -1331,10 +1331,10 @@ class GameManager {
         // Reset XP to remaining amount (not 0, but the remainder)
         this.appState.xp = remainingXP;
         
-        // Save remaining XP to Supabase
+        // Save remaining XP to localStorage
         try {
           await apiService.updateUserXP(this.appState.address, this.appState.xp);
-          console.log('✅ Remaining XP saved to Supabase:', this.appState.xp);
+          console.log('✅ Remaining XP saved to localStorage:', this.appState.xp);
         } catch (error) {
           console.error('❌ Failed to save remaining XP:', error.message);
         }
@@ -2353,12 +2353,12 @@ class GameManager {
       // Check for daily reset (temporarily disabled)
       // await this.checkDailyReset();
       
-      // Load XP ONLY from Supabase
+      // Load XP from localStorage
       try {
         this.appState.xp = await apiService.getUserXP(this.appState.address);
-        console.log('✅ XP loaded from Supabase:', this.appState.xp);
+        console.log('✅ XP loaded from localStorage:', this.appState.xp);
       } catch (error) {
-        console.error('❌ Failed to load XP from Supabase:', error.message);
+        console.error('❌ Failed to load XP from localStorage:', error.message);
         this.appState.xp = 0; // Default to 0 if API fails
       }
       
@@ -2366,7 +2366,7 @@ class GameManager {
       this.appState.totalXP = this.appState.xp;
       this.appState.level = Math.floor(this.appState.totalXP / 1000) + 1;
       
-      // Load other data from Supabase with localStorage fallback
+              // Load other data from localStorage
       try {
         this.appState.ownedDogs = await apiService.getOwnedDogs(this.appState.address);
         console.log('✅ Collection loaded:', this.appState.ownedDogs);
@@ -2467,10 +2467,10 @@ class GameManager {
     }
   }
 
-  // No longer needed - XP is only in Supabase now
-  // async syncDataWithBackend() {
-  //   // This function is deprecated - XP is now only stored in Supabase
-  // }
+          // No longer needed - XP is only in localStorage now
+        // async syncDataWithBackend() {
+        //   // This function is deprecated - XP is now only stored in localStorage
+        // }
 
   // Achievement and sharing functions
   showAchievementModal(achievement) {
@@ -2628,13 +2628,13 @@ class GameManager {
         console.log('📊 XP display force updated:', this.appState.xp);
       }
 
-      // Force immediate Supabase save to prevent race condition
+              // Force immediate localStorage save to prevent race condition
       try {
-        console.log('💾 Force saving XP to Supabase immediately...');
+                  console.log('💾 Force saving XP to localStorage immediately...');
         await apiService.updateUserXP(this.appState.address, this.appState.xp);
-        console.log('✅ XP force saved to Supabase successfully');
-      } catch (error) {
-        console.error('❌ Failed to force save XP to Supabase:', error.message);
+                  console.log('✅ XP force saved to localStorage successfully');
+              } catch (error) {
+          console.error('❌ Failed to force save XP to localStorage:', error.message);
       }
 
       // Show success message
