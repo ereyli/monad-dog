@@ -107,24 +107,115 @@ if (process.env.NODE_ENV === 'production') {
   console.log('⚠️ Rate limiting disabled for development');
 }
 
-// Initialize Supabase (with fallback)
+// Initialize Supabase with comprehensive error handling and fallbacks
 let supabase = null;
-try {
-  const supabaseUrl = process.env.SUPABASE_URL || 'https://uhqszfoekqrjtybrwqzt.supabase.co';
-  const supabaseKey = process.env.SUPABASE_ANON_KEY;
-  
-  if (supabaseUrl && supabaseKey && supabaseKey !== 'your-supabase-anon-key-here') {
+let supabaseStatus = 'disconnected';
+
+const initializeSupabase = async () => {
+  try {
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_ANON_KEY;
+    
+    console.log('🔧 Initializing Supabase connection...');
+    console.log('🔑 URL:', supabaseUrl ? 'Set' : 'Missing');
+    console.log('🔑 Key:', supabaseKey ? `${supabaseKey.substring(0, 20)}...` : 'Missing');
+    
+    if (!supabaseUrl || !supabaseKey) {
+      console.log('⚠️ Supabase credentials missing - using local storage fallback');
+      supabaseStatus = 'no_credentials';
+      return;
+    }
+    
+    if (supabaseKey === 'your-supabase-anon-key-here' || supabaseKey === 'your_anon_key_here') {
+      console.log('⚠️ Supabase key not configured - using local storage fallback');
+      supabaseStatus = 'no_credentials';
+      return;
+    }
+    
+    // Test Supabase connection
     supabase = createClient(supabaseUrl, supabaseKey);
-    console.log('✅ Supabase connected');
-    console.log('🔑 Using key:', supabaseKey.substring(0, 20) + '...');
-  } else {
-    console.log('⚠️ Supabase credentials missing, using fallback mode');
-    console.log('🔑 URL:', supabaseUrl);
-    console.log('🔑 Key length:', supabaseKey ? supabaseKey.length : 0);
+    
+    // Test the connection by making a simple query
+    const { data, error } = await supabase
+      .from('user_xp')
+      .select('count')
+      .limit(1);
+    
+    if (error) {
+      console.log('⚠️ Supabase connection test failed:', error.message);
+      supabaseStatus = 'connection_failed';
+      supabase = null;
+      return;
+    }
+    
+    console.log('✅ Supabase connected successfully');
+    supabaseStatus = 'connected';
+    
+  } catch (error) {
+    console.log('⚠️ Supabase initialization failed:', error.message);
+    supabaseStatus = 'error';
+    supabase = null;
   }
-} catch (error) {
-  console.log('⚠️ Supabase connection failed, using fallback mode:', error.message);
-}
+};
+
+// Initialize Supabase on startup
+initializeSupabase();
+
+// In-memory storage fallback for when Supabase is not available
+const localStorage = new Map();
+
+// Helper function to get data from Supabase or fallback
+const getDataFromSupabaseOrFallback = async (table, query, fallbackData) => {
+  if (supabase && supabaseStatus === 'connected') {
+    try {
+      const { data, error } = await supabase
+        .from(table)
+        .select('*')
+        .eq(query.column, query.value)
+        .single();
+      
+      if (error && error.code !== 'PGRST116') {
+        console.error(`❌ Supabase error for ${table}:`, error);
+        throw error;
+      }
+      
+      return data || fallbackData;
+    } catch (error) {
+      console.log(`⚠️ Supabase query failed for ${table}, using fallback`);
+      return fallbackData;
+    }
+  } else {
+    console.log(`📦 Using local storage fallback for ${table}`);
+    const key = `${table}_${query.value}`;
+    return localStorage.get(key) || fallbackData;
+  }
+};
+
+// Helper function to save data to Supabase or fallback
+const saveDataToSupabaseOrFallback = async (table, data, query) => {
+  if (supabase && supabaseStatus === 'connected') {
+    try {
+      const { error } = await supabase
+        .from(table)
+        .upsert(data, {
+          onConflict: query?.onConflict || 'wallet_address'
+        });
+      
+      if (error) throw error;
+      
+      console.log(`✅ Data saved to Supabase ${table}`);
+      return true;
+    } catch (error) {
+      console.error(`❌ Supabase save failed for ${table}:`, error);
+      return false;
+    }
+  } else {
+    console.log(`💾 Saving to local storage fallback for ${table}`);
+    const key = `${table}_${data.wallet_address}`;
+    localStorage.set(key, data);
+    return true;
+  }
+};
 
 // Input validation middleware
 const validateWalletAddress = (req, res, next) => {
@@ -150,7 +241,7 @@ app.get('/api/health', (req, res) => {
     status: 'ok', 
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development',
-    supabase: !!supabase ? 'connected' : 'disconnected'
+    supabase: supabaseStatus
   });
 });
 
@@ -165,32 +256,12 @@ app.get('/api/xp/:address', validateWalletAddress, async (req, res) => {
   try {
     const { address } = req.params;
     
-    if (supabase) {
-      console.log('🔍 Fetching XP for address:', address);
-      const { data, error } = await supabase
-        .from('user_xp')
-        .select('xp, updated_at')
-        .eq('wallet_address', address.toLowerCase())
-        .single();
-      
-      if (error && error.code !== 'PGRST116') {
-        console.error('❌ Supabase error:', error);
-        throw error;
-      }
-      
-      console.log('📊 XP data:', data);
-      res.json({
-        xp: data?.xp || 0,
-        updated_at: data?.updated_at || null
-      });
-    } else {
-      console.log('⚠️ Supabase not available, using fallback');
-      // Fallback: return 0 XP if Supabase not available
-      res.json({
-        xp: 0,
-        updated_at: null
-      });
-    }
+    const data = await getDataFromSupabaseOrFallback('user_xp', { column: 'wallet_address', value: address.toLowerCase() }, { xp: 0, updated_at: null });
+    
+    res.json({
+      xp: data?.xp || 0,
+      updated_at: data?.updated_at || null
+    });
   } catch (error) {
     console.error('Error fetching XP:', error);
     // Return fallback response instead of error
@@ -211,19 +282,11 @@ app.post('/api/xp/:address', xpLimiter, async (req, res) => {
       return res.status(400).json({ error: 'Invalid XP amount' });
     }
     
-    if (supabase) {
-      const { error } = await supabase
-        .from('user_xp')
-        .upsert({
-          wallet_address: address.toLowerCase(),
-          xp: xp,
-          updated_at: new Date().toISOString()
-        }, {
-          onConflict: 'wallet_address'
-        });
-      
-      if (error) throw error;
-    }
+    await saveDataToSupabaseOrFallback('user_xp', {
+      wallet_address: address.toLowerCase(),
+      xp: xp,
+      updated_at: new Date().toISOString()
+    }, { column: 'wallet_address', value: address.toLowerCase() });
     
     res.json({ success: true, xp: xp });
   } catch (error) {
@@ -240,16 +303,8 @@ app.get('/api/stats/:address', async (req, res) => {
     
     let xp = 0;
     
-    if (supabase) {
-      // Get XP from Supabase
-      const { data: xpData } = await supabase
-        .from('user_xp')
-        .select('xp')
-        .eq('wallet_address', address.toLowerCase())
-        .single();
-      
-      xp = xpData?.xp || 0;
-    }
+    const data = await getDataFromSupabaseOrFallback('user_xp', { column: 'wallet_address', value: address.toLowerCase() }, { xp: 0 });
+    xp = data?.xp || 0;
     
     // Get daily stats (from localStorage equivalent)
     const dailyStats = {
@@ -281,43 +336,18 @@ app.get('/api/collection/:address', async (req, res) => {
   try {
     const { address } = req.params;
     
-    if (supabase) {
-      try {
-        // Get all owned dogs for this wallet
-        const { data, error } = await supabase
-          .from('dog_collection')
-          .select('dog_id, unlocked_at')
-          .eq('wallet_address', address.toLowerCase());
-        
-        if (error && error.code !== 'PGRST116') {
-          throw error;
-        }
-        
-        // Convert to array of dog IDs
-        const ownedDogs = data ? data.map(item => item.dog_id) : [];
-        
-        console.log(`📊 Collection API - Wallet: ${address}, Dogs: ${ownedDogs.length}`);
-        
-        res.json({
-          owned_dogs: ownedDogs,
-          total_pets: 0, // Will be updated separately
-          last_updated: data && data.length > 0 ? data[0].unlocked_at : null
-        });
-      } catch (tableError) {
-        console.log('Table does not exist, returning empty collection');
-        res.json({
-          owned_dogs: [],
-          total_pets: 0,
-          last_updated: null
-        });
-      }
-    } else {
-      res.json({
-        owned_dogs: [],
-        total_pets: 0,
-        last_updated: null
-      });
-    }
+    const data = await getDataFromSupabaseOrFallback('dog_collection', { column: 'wallet_address', value: address.toLowerCase() }, []);
+    
+    // Convert to array of dog IDs
+    const ownedDogs = data ? data.map(item => item.dog_id) : [];
+    
+    console.log(`📊 Collection API - Wallet: ${address}, Dogs: ${ownedDogs.length}`);
+    
+    res.json({
+      owned_dogs: ownedDogs,
+      total_pets: 0, // Will be updated separately
+      last_updated: data && data.length > 0 ? data[0].unlocked_at : null
+    });
   } catch (error) {
     console.error('Error fetching collection:', error);
     res.status(500).json({ error: 'Failed to fetch collection' });
@@ -330,13 +360,9 @@ app.post('/api/collection/:address', async (req, res) => {
     const { address } = req.params;
     const { owned_dogs, total_pets } = req.body;
     
-    if (supabase && owned_dogs && Array.isArray(owned_dogs)) {
+    if (owned_dogs && Array.isArray(owned_dogs)) {
       // First, get existing dogs for this wallet
-      const { data: existingDogs } = await supabase
-        .from('dog_collection')
-        .select('dog_id')
-        .eq('wallet_address', address.toLowerCase());
-      
+      const existingDogs = await getDataFromSupabaseOrFallback('dog_collection', { column: 'wallet_address', value: address.toLowerCase() }, []);
       const existingDogIds = existingDogs ? existingDogs.map(item => item.dog_id) : [];
       
       // Find new dogs to add
@@ -350,11 +376,7 @@ app.post('/api/collection/:address', async (req, res) => {
           unlocked_at: new Date().toISOString()
         }));
         
-        const { error } = await supabase
-          .from('dog_collection')
-          .insert(dogsToInsert);
-        
-        if (error) throw error;
+        await saveDataToSupabaseOrFallback('dog_collection', dogsToInsert, { column: 'wallet_address', value: address.toLowerCase() });
       }
     }
     
@@ -370,65 +392,24 @@ app.get('/api/challenges/:address', async (req, res) => {
   try {
     const { address } = req.params;
     
-    if (supabase) {
-      try {
-        // Get challenge progress for this wallet
-        const { data, error } = await supabase
-          .from('challenge_progress')
-          .select('challenge_id, progress, completed, completed_at')
-          .eq('wallet_address', address.toLowerCase());
-        
-        if (error && error.code !== 'PGRST116') {
-          throw error;
-        }
-        
-        // Convert to progress object
-        const progress = {};
-        const completedChallenges = [];
-        
-        if (data) {
-          data.forEach(item => {
-            progress[item.challenge_id] = item.progress;
-            if (item.completed) {
-              completedChallenges.push(item.challenge_id);
-            }
-          });
-        }
-        
-        // Get user stats for daily stats
-        const { data: statsData } = await supabase
-          .from('user_stats')
-          .select('daily_pets, daily_greets, daily_flips, daily_slots, last_reset_date')
-          .eq('wallet_address', address.toLowerCase())
-          .single();
-        
-        const dailyStats = {
-          pets: statsData?.daily_pets || 0,
-          greets: statsData?.daily_greets || 0,
-          flips: statsData?.daily_flips || 0,
-          slots: statsData?.daily_slots || 0
-        };
-        
-        res.json({
-          progress: progress,
-          daily_stats: dailyStats,
-          last_reset_date: statsData?.last_reset_date || null
-        });
-      } catch (tableError) {
-        console.log('Tables do not exist, returning empty challenges');
-        res.json({
-          progress: {},
-          daily_stats: {},
-          last_reset_date: null
-        });
-      }
-    } else {
-      res.json({
-        progress: {},
-        daily_stats: {},
-        last_reset_date: null
-      });
-    }
+    const progress = await getDataFromSupabaseOrFallback('challenge_progress', { column: 'wallet_address', value: address.toLowerCase() }, {});
+    const completedChallenges = progress ? Object.keys(progress).filter(id => progress[id].completed) : [];
+    
+    // Get user stats for daily stats
+    const dailyStats = await getDataFromSupabaseOrFallback('user_stats', { column: 'wallet_address', value: address.toLowerCase() }, {
+      daily_pets: 0,
+      daily_greets: 0,
+      daily_flips: 0,
+      daily_slots: 0
+    });
+    
+    const lastResetDate = await getDataFromSupabaseOrFallback('user_stats', { column: 'wallet_address', value: address.toLowerCase() }, null);
+    
+    res.json({
+      progress: progress,
+      daily_stats: dailyStats,
+      last_reset_date: lastResetDate || null
+    });
   } catch (error) {
     console.error('Error fetching challenges:', error);
     // Return fallback response instead of error
@@ -446,43 +427,28 @@ app.post('/api/challenges/:address', async (req, res) => {
     const { address } = req.params;
     const { progress, daily_stats, last_reset_date } = req.body;
     
-    if (supabase) {
-      // Update or insert challenge progress
-      if (progress && typeof progress === 'object') {
-        for (const [challengeId, progressValue] of Object.entries(progress)) {
-          const { error } = await supabase
-            .from('challenge_progress')
-            .upsert({
-              wallet_address: address.toLowerCase(),
-              challenge_id: challengeId,
-              progress: progressValue,
-              updated_at: new Date().toISOString()
-            }, {
-              onConflict: 'wallet_address,challenge_id'
-            });
-          
-          if (error) throw error;
-        }
+    if (progress && typeof progress === 'object') {
+      for (const [challengeId, progressValue] of Object.entries(progress)) {
+        await saveDataToSupabaseOrFallback('challenge_progress', {
+          wallet_address: address.toLowerCase(),
+          challenge_id: challengeId,
+          progress: progressValue,
+          updated_at: new Date().toISOString()
+        }, { column: 'wallet_address', value: address.toLowerCase() });
       }
-      
-      // Update user stats
-      if (daily_stats && typeof daily_stats === 'object') {
-        const { error } = await supabase
-          .from('user_stats')
-          .upsert({
-            wallet_address: address.toLowerCase(),
-            daily_pets: daily_stats.pets || 0,
-            daily_greets: daily_stats.greets || 0,
-            daily_flips: daily_stats.flips || 0,
-            daily_slots: daily_stats.slots || 0,
-            last_reset_date: last_reset_date || new Date().toDateString(),
-            updated_at: new Date().toISOString()
-          }, {
-            onConflict: 'wallet_address'
-          });
-        
-        if (error) throw error;
-      }
+    }
+    
+    // Update user stats
+    if (daily_stats && typeof daily_stats === 'object') {
+      await saveDataToSupabaseOrFallback('user_stats', {
+        wallet_address: address.toLowerCase(),
+        daily_pets: daily_stats.pets || 0,
+        daily_greets: daily_stats.greets || 0,
+        daily_flips: daily_stats.flips || 0,
+        daily_slots: daily_stats.slots || 0,
+        last_reset_date: last_reset_date || new Date().toDateString(),
+        updated_at: new Date().toISOString()
+      }, { column: 'wallet_address', value: address.toLowerCase() });
     }
     
     res.json({ success: true });
@@ -495,20 +461,9 @@ app.post('/api/challenges/:address', async (req, res) => {
 // Get leaderboard
 app.get('/api/leaderboard', async (req, res) => {
   try {
-    if (supabase) {
-      const { data, error } = await supabase
-        .from('user_xp')
-        .select('wallet_address, xp, updated_at')
-        .order('xp', { ascending: false })
-        .limit(10);
-      
-      if (error) throw error;
-      
-      res.json(data || []);
-    } else {
-      // Fallback: return empty leaderboard
-      res.json([]);
-    }
+    const data = await getDataFromSupabaseOrFallback('user_xp', null, []);
+    
+    res.json(data || []);
   } catch (error) {
     console.error('Error fetching leaderboard:', error);
     res.status(500).json({ error: 'Failed to fetch leaderboard' });
@@ -518,43 +473,35 @@ app.get('/api/leaderboard', async (req, res) => {
 // Clean test data (for development only)
 app.delete('/api/cleanup/test-data', async (req, res) => {
   try {
-    if (supabase) {
+    if (supabase && supabaseStatus === 'connected') {
       console.log('🧹 Cleaning up test data...');
       
       // Delete test wallet data from all tables
       const testWallet = '0x1234567890123456789012345678901234567890';
       
       // Clean dog_collection
-      const { error: collectionError } = await supabase
+      await supabase
         .from('dog_collection')
         .delete()
         .eq('wallet_address', testWallet.toLowerCase());
       
-      if (collectionError) console.error('Error cleaning collection:', collectionError);
-      
       // Clean challenge_progress
-      const { error: challengeError } = await supabase
+      await supabase
         .from('challenge_progress')
         .delete()
         .eq('wallet_address', testWallet.toLowerCase());
       
-      if (challengeError) console.error('Error cleaning challenges:', challengeError);
-      
       // Clean user_stats
-      const { error: statsError } = await supabase
+      await supabase
         .from('user_stats')
         .delete()
         .eq('wallet_address', testWallet.toLowerCase());
       
-      if (statsError) console.error('Error cleaning stats:', statsError);
-      
       // Clean user_xp
-      const { error: xpError } = await supabase
+      await supabase
         .from('user_xp')
         .delete()
         .eq('wallet_address', testWallet.toLowerCase());
-      
-      if (xpError) console.error('Error cleaning XP:', xpError);
       
       console.log('✅ Test data cleaned successfully');
       res.json({ success: true, message: 'Test data cleaned' });
