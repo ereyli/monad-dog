@@ -113,21 +113,16 @@ let supabaseStatus = 'disconnected';
 
 const initializeSupabase = async () => {
   try {
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_ANON_KEY;
+    // Use hardcoded values for now to ensure it works
+    const supabaseUrl = 'https://uhqszfoekqrjtybrwqzt.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVocXN6Zm9la3FyanR5YnJ3cXp0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzI5NzI5NzAsImV4cCI6MjA0ODU0ODk3MH0.Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8';
     
     console.log('🔧 Initializing Supabase connection...');
-    console.log('🔑 URL:', supabaseUrl ? 'Set' : 'Missing');
-    console.log('🔑 Key:', supabaseKey ? `${supabaseKey.substring(0, 20)}...` : 'Missing');
+    console.log('🔑 URL:', supabaseUrl);
+    console.log('🔑 Key:', supabaseKey.substring(0, 20) + '...');
     
     if (!supabaseUrl || !supabaseKey) {
       console.log('⚠️ Supabase credentials missing - using local storage fallback');
-      supabaseStatus = 'no_credentials';
-      return;
-    }
-    
-    if (supabaseKey === 'your-supabase-anon-key-here' || supabaseKey === 'your_anon_key_here') {
-      console.log('⚠️ Supabase key not configured - using local storage fallback');
       supabaseStatus = 'no_credentials';
       return;
     }
@@ -136,6 +131,7 @@ const initializeSupabase = async () => {
     supabase = createClient(supabaseUrl, supabaseKey);
     
     // Test the connection by making a simple query
+    console.log('🧪 Testing Supabase connection...');
     const { data, error } = await supabase
       .from('user_xp')
       .select('count')
@@ -143,16 +139,19 @@ const initializeSupabase = async () => {
     
     if (error) {
       console.log('⚠️ Supabase connection test failed:', error.message);
+      console.log('🔍 Error details:', error);
       supabaseStatus = 'connection_failed';
       supabase = null;
       return;
     }
     
     console.log('✅ Supabase connected successfully');
+    console.log('📊 Test query result:', data);
     supabaseStatus = 'connected';
     
   } catch (error) {
     console.log('⚠️ Supabase initialization failed:', error.message);
+    console.log('🔍 Full error:', error);
     supabaseStatus = 'error';
     supabase = null;
   }
@@ -241,8 +240,63 @@ app.get('/api/health', (req, res) => {
     status: 'ok', 
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development',
-    supabase: supabaseStatus
+    supabase: supabaseStatus,
+    supabase_url: 'https://uhqszfoekqrjtybrwqzt.supabase.co',
+    version: '1.0.0',
+    endpoints: {
+      health: '/api/health',
+      xp: '/api/xp/:address',
+      challenges: '/api/challenges/:address',
+      test: '/api/test'
+    }
   });
+});
+
+// Simple test endpoint
+app.get('/api/test', (req, res) => {
+  res.json({
+    message: 'API is working!',
+    timestamp: new Date().toISOString(),
+    supabase_status: supabaseStatus
+  });
+});
+
+// Test Supabase endpoint
+app.get('/api/test-supabase', async (req, res) => {
+  try {
+    if (supabase && supabaseStatus === 'connected') {
+      const { data, error } = await supabase
+        .from('user_xp')
+        .select('count')
+        .limit(1);
+      
+      if (error) {
+        res.json({
+          status: 'error',
+          message: 'Supabase query failed',
+          error: error.message
+        });
+      } else {
+        res.json({
+          status: 'success',
+          message: 'Supabase is working',
+          data: data
+        });
+      }
+    } else {
+      res.json({
+        status: 'disconnected',
+        message: 'Supabase not connected',
+        supabase_status: supabaseStatus
+      });
+    }
+  } catch (error) {
+    res.json({
+      status: 'error',
+      message: 'Supabase test failed',
+      error: error.message
+    });
+  }
 });
 
 // Add request logging for debugging
