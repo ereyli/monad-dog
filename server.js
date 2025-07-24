@@ -106,8 +106,11 @@ try {
   if (supabaseUrl && supabaseKey && supabaseKey !== 'your-supabase-anon-key-here') {
     supabase = createClient(supabaseUrl, supabaseKey);
     console.log('✅ Supabase connected');
+    console.log('🔑 Using key:', supabaseKey.substring(0, 20) + '...');
   } else {
     console.log('⚠️ Supabase credentials missing, using fallback mode');
+    console.log('🔑 URL:', supabaseUrl);
+    console.log('🔑 Key length:', supabaseKey ? supabaseKey.length : 0);
   }
 } catch (error) {
   console.log('⚠️ Supabase connection failed, using fallback mode:', error.message);
@@ -137,6 +140,7 @@ app.get('/api/xp/:address', validateWalletAddress, async (req, res) => {
     const { address } = req.params;
     
     if (supabase) {
+      console.log('🔍 Fetching XP for address:', address);
       const { data, error } = await supabase
         .from('user_xp')
         .select('xp, updated_at')
@@ -144,14 +148,17 @@ app.get('/api/xp/:address', validateWalletAddress, async (req, res) => {
         .single();
       
       if (error && error.code !== 'PGRST116') {
+        console.error('❌ Supabase error:', error);
         throw error;
       }
       
+      console.log('📊 XP data:', data);
       res.json({
         xp: data?.xp || 0,
         updated_at: data?.updated_at || null
       });
     } else {
+      console.log('⚠️ Supabase not available, using fallback');
       // Fallback: return 0 XP if Supabase not available
       res.json({
         xp: 0,
