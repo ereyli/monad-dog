@@ -1460,8 +1460,8 @@ class GameManager {
       console.log(`🔗 Executing ${methodName} transaction...`);
       this.showStatus(statusId, 'Preparing transaction...', 'pending');
       
-      // For Farcaster Wallet, use simulation only
-      if (this.farcasterClient) {
+      // For Farcaster Wallet, use simulation only - check early
+      if (this.farcasterClient || this.appState.walletType === 'farcaster') {
         console.log('🟣 Using Farcaster Wallet simulation method');
         
         this.showStatus(statusId, 'Processing in Farcaster...', 'pending');
@@ -1533,7 +1533,8 @@ class GameManager {
         errorMessage = 'Network error. Please check your connection';
       } else if (error.message.includes('UnsupportedMethodError') || 
                  error.message.includes('eth_estimateGas') ||
-                 error.message.includes('Provider.UnsupportedMethodError')) {
+                 error.message.includes('Provider.UnsupportedMethodError') ||
+                 error.message.includes('Farcaster Wallet does not support')) {
         // For Farcaster Wallet errors, simulate success
         console.log('🟣 Farcaster Wallet error detected, simulating success...');
         this.showStatus(statusId, '✅ Success! +' + xpAmount + ' XP', 'success');
