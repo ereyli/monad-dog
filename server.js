@@ -30,7 +30,7 @@ app.use(helmet({
         "'self'",
         "data:",
         "https:",
-        "https://monad-snowy.vercel.app",
+        "https://monad-dog.vercel.app",
         "https://placedog.net"
       ],
       connectSrc: [
@@ -51,8 +51,8 @@ app.use(helmet({
 
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
-    ? ['https://monad-snowy.vercel.app', 'https://your-production-domain.vercel.app', 'http://localhost:3000']
-    : ['http://localhost:8000', 'http://localhost:3000', 'http://localhost:3001', 'https://monad-snowy.vercel.app'],
+    ? ['https://monad-dog.vercel.app', 'https://your-production-domain.vercel.app', 'http://localhost:3000']
+    : ['http://localhost:8000', 'http://localhost:3000', 'http://localhost:3001', 'https://monad-dog.vercel.app'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Cache-Control', 'Pragma', 'Expires', 'User-Agent', 'Accept', 'Accept-Language'],

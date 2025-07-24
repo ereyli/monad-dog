@@ -53,8 +53,8 @@ class APIService {
     const endpoints = [
       `${this.baseURL}${endpoint}`,
       // Fallback endpoints if main API is blocked
-      `https://monad-snowy.vercel.app/api${endpoint}`,
-      `https://monad-snowy.vercel.app/api/v1${endpoint}`
+      `https://monad-dog.vercel.app/api${endpoint}`,
+      `https://monad-dog.vercel.app/api/v1${endpoint}`
     ];
 
     for (let endpointIndex = 0; endpointIndex < endpoints.length; endpointIndex++) {

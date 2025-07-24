@@ -12,9 +12,9 @@ This error occurs when browser extensions (like ad blockers) prevent API request
 - Updates are queued and synced when API becomes available
 
 ### 2. **Multiple Endpoint Fallbacks**
-- Primary: `https://monad-snowy.vercel.app/api`
-- Fallback 1: `https://monad-snowy.vercel.app/api`
-- Fallback 2: `https://monad-snowy.vercel.app/api/v1`
+- Primary: `https://monad-dog.vercel.app/api`
+- Fallback 1: `https://monad-dog.vercel.app/api`
+- Fallback 2: `https://monad-dog.vercel.app/api/v1`
 
 ### 3. **Ad-Blocker Friendly Headers**
 - Added proper `Accept` and `Accept-Language` headers
@@ -29,7 +29,7 @@ This error occurs when browser extensions (like ad blockers) prevent API request
 ## Testing the API
 
 ### 1. **Use the Test Page**
-Visit: `https://monad-snowy.vercel.app/test-api.html`
+Visit: `https://monad-dog.vercel.app/test-api.html`
 
 This page will:
 - Test all API endpoints
@@ -45,7 +45,7 @@ Look for these messages:
 ### 3. **Manual Testing**
 ```javascript
 // Test in browser console
-fetch('https://monad-snowy.vercel.app/api/health')
+fetch('https://monad-dog.vercel.app/api/health')
   .then(r => r.json())
   .then(console.log)
   .catch(console.error);
