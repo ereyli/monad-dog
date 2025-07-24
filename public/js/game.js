@@ -83,15 +83,22 @@ class GameManager {
 
   // Detect if we're in Farcaster Frame or regular web
   detectEnvironment() {
-    // Check for Farcaster Frame indicators
-    const isInFarcasterFrame = 
-      window.location.href.includes('warpcast.com') ||
-      window.location.href.includes('farcaster.xyz') ||
-      window.location.href.includes('frame') ||
-      window.navigator.userAgent.includes('Farcaster') ||
-      document.referrer.includes('warpcast.com') ||
-      document.referrer.includes('farcaster.xyz') ||
-      window.parent !== window; // Check if in iframe
+    // Check for Farcaster Frame indicators using SDK
+    let isInFarcasterFrame = false;
+    
+    if (window.farcasterSDK && window.farcasterSDK.isInFrame) {
+      isInFarcasterFrame = window.farcasterSDK.isInFrame();
+    } else {
+      // Fallback detection
+      isInFarcasterFrame = 
+        window.location.href.includes('warpcast.com') ||
+        window.location.href.includes('farcaster.xyz') ||
+        window.location.href.includes('frame') ||
+        window.navigator.userAgent.includes('Farcaster') ||
+        document.referrer.includes('warpcast.com') ||
+        document.referrer.includes('farcaster.xyz') ||
+        window.parent !== window; // Check if in iframe
+    }
     
     this.environment = isInFarcasterFrame ? 'farcaster' : 'web';
     console.log(`🌍 Environment detected: ${this.environment}`);
@@ -130,31 +137,33 @@ class GameManager {
     console.log('🟣 Initializing Farcaster Wallet system...');
     
     try {
-      // Try to load Farcaster SDK
-      if (typeof window !== 'undefined' && window.farcasterSDK) {
+      // Use the SDK from window.farcasterSDK
+      if (window.farcasterSDK) {
         this.sdk = window.farcasterSDK;
         console.log('✅ Farcaster SDK found');
-      } else {
-        // Try dynamic import
-        try {
-          const module = await import('/js/farcaster-sdk.js');
-          this.sdk = module.sdk;
-          console.log('✅ Farcaster SDK loaded dynamically');
-        } catch (e) {
-          console.log('⚠️ Farcaster SDK not available, using fallback');
-        }
-      }
-      
-      // Check if we're in a Farcaster client
-      if (this.sdk && this.sdk.actions) {
-        try {
-          await this.sdk.actions.ready();
-          console.log('✅ Farcaster client detected');
+        
+        // Check if we're in a Farcaster client
+        if (this.sdk.isInFrame && this.sdk.isInFrame()) {
+          console.log('✅ Running in Farcaster Frame environment');
           this.farcasterClient = true;
-        } catch (e) {
-          console.log('⚠️ Not in Farcaster client');
+          
+          // Try to get user info
+          try {
+            const user = await this.sdk.actions.getUser();
+            if (user) {
+              console.log('✅ Farcaster user detected:', user);
+              this.farcasterUser = user;
+            }
+          } catch (e) {
+            console.log('⚠️ Could not get Farcaster user info');
+          }
+        } else {
+          console.log('⚠️ Not in Farcaster Frame environment');
           this.farcasterClient = false;
         }
+      } else {
+        console.log('⚠️ Farcaster SDK not available');
+        this.farcasterClient = false;
       }
       
     } catch (error) {

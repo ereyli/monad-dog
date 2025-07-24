@@ -40,9 +40,35 @@
   <script src="/js/ethers.min.js"></script>
   
   <!-- Farcaster Mini App SDK -->
-  <script>
-    // Farcaster SDK will be loaded dynamically in game.js
-    window.farcasterSDK = null;
+  <script type="module">
+    import { sdk } from 'https://esm.sh/@farcaster/miniapp-sdk'
+    window.farcasterSDK = sdk;
+    
+    // Initialize Farcaster SDK
+    document.addEventListener('DOMContentLoaded', async () => {
+      try {
+        console.log('🟣 Initializing Farcaster Mini App SDK...');
+        
+        // Check if we're in a Farcaster environment
+        if (sdk.isInFrame()) {
+          console.log('✅ Running in Farcaster Frame environment');
+          
+          // Wait for app to be ready, then call ready()
+          window.addEventListener('appReady', async () => {
+            try {
+              await sdk.actions.ready();
+              console.log('✅ Farcaster app ready - splash screen hidden');
+            } catch (error) {
+              console.error('❌ Failed to call sdk.actions.ready():', error);
+            }
+          });
+        } else {
+          console.log('🌐 Running in web browser environment');
+        }
+      } catch (error) {
+        console.error('❌ Failed to initialize Farcaster SDK:', error);
+      }
+    });
   </script>
 
   <!-- Custom Styles -->

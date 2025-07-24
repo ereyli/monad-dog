@@ -41,6 +41,9 @@ class MonadDogApp {
       this.isInitialized = true;
       console.log('✅ Monad Dog App initialized successfully!');
       
+      // Trigger appReady event for Farcaster SDK
+      window.dispatchEvent(new Event('appReady'));
+      
       // Show welcome message
       setTimeout(() => {
         this.modules.ui.showToast('Welcome to Monad Dog! 🐕', 'success', 3000);
