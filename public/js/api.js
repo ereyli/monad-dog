@@ -5,58 +5,185 @@ class APIService {
     this.cache = new Map(); // Simple in-memory cache
     this.lastUpdate = {}; // Track last update time per address
     this.updateQueue = new Map(); // Queue for batched updates
+    this.offlineMode = false; // Track if we're in offline mode
+    this.pendingUpdates = new Map(); // Store updates when offline
   }
 
-  // Generic request method with retry logic
+  // Check if we're in offline mode
+  isOffline() {
+    return this.offlineMode;
+  }
+
+  // Enable offline mode
+  enableOfflineMode() {
+    this.offlineMode = true;
+    console.log('🔄 API offline mode enabled - using local storage fallback');
+  }
+
+  // Disable offline mode
+  disableOfflineMode() {
+    this.offlineMode = false;
+    console.log('🔄 API online mode restored');
+  }
+
+  // Get data from local storage as fallback
+  getLocalData(key, defaultValue = null) {
+    try {
+      const data = localStorage.getItem(key);
+      return data ? JSON.parse(data) : defaultValue;
+    } catch (error) {
+      console.warn('Failed to get local data:', error);
+      return defaultValue;
+    }
+  }
+
+  // Set data to local storage as fallback
+  setLocalData(key, value) {
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+      return true;
+    } catch (error) {
+      console.warn('Failed to set local data:', error);
+      return false;
+    }
+  }
+
+  // Generic request method with retry logic and fallback
   async request(endpoint, options = {}, retries = 3) {
-    for (let attempt = 1; attempt <= retries; attempt++) {
-      try {
-        const url = `${this.baseURL}${endpoint}`;
-        
-        // Add cache busting for GET requests with random parameter
-        const cacheBuster = `_cb=${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        const finalUrl = options.method === 'GET' 
-          ? `${url}${url.includes('?') ? '&' : '?'}${cacheBuster}`
-          : url;
-        
-        const response = await fetch(finalUrl, {
-          headers: {
-            'Content-Type': 'application/json',
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache',
-            'Expires': '0',
-            'User-Agent': 'MonadDogApp/1.0',
-            ...options.headers
-          },
-          mode: 'cors',
-          credentials: 'same-origin',
-          ...options
-        });
+    const endpoints = [
+      `${this.baseURL}${endpoint}`,
+      // Fallback endpoints if main API is blocked
+      `https://monad-snowy.vercel.app/api${endpoint}`,
+      `https://monad-snowy.vercel.app/api/v1${endpoint}`
+    ];
 
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
+    for (let endpointIndex = 0; endpointIndex < endpoints.length; endpointIndex++) {
+      const baseUrl = endpoints[endpointIndex];
+      
+      for (let attempt = 1; attempt <= retries; attempt++) {
+        try {
+          const url = baseUrl;
+          
+          // Add cache busting for GET requests with random parameter
+          const cacheBuster = `_cb=${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+          const finalUrl = options.method === 'GET' 
+            ? `${url}${url.includes('?') ? '&' : '?'}${cacheBuster}`
+            : url;
+          
+          // Use more ad-blocker-friendly headers
+          const requestOptions = {
+            headers: {
+              'Content-Type': 'application/json',
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+              'Pragma': 'no-cache',
+              'Expires': '0',
+              'User-Agent': 'MonadDogApp/1.0',
+              'Accept': 'application/json',
+              'Accept-Language': 'en-US,en;q=0.9',
+              ...options.headers
+            },
+            mode: 'cors',
+            credentials: 'same-origin',
+            ...options
+          };
 
-        return await response.json();
-      } catch (error) {
-        console.warn(`API request attempt ${attempt}/${retries} failed:`, error.message);
-        
-        // Check if it's a blocking error
-        if (error.message.includes('ERR_BLOCKED_BY_CLIENT') || 
-            error.message.includes('Failed to fetch') ||
-            error.message.includes('ERR_NETWORK')) {
-          console.warn('⚠️ Request blocked by client (ad blocker?), will retry...');
+          // Add timeout to prevent hanging requests
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+          
+          requestOptions.signal = controller.signal;
+          
+          console.log(`🔄 Trying endpoint ${endpointIndex + 1}/${endpoints.length}, attempt ${attempt}/${retries}: ${finalUrl}`);
+          
+          const response = await fetch(finalUrl, requestOptions);
+          
+          clearTimeout(timeoutId);
+
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          console.log(`✅ Success with endpoint ${endpointIndex + 1}: ${finalUrl}`);
+          return await response.json();
+        } catch (error) {
+          console.warn(`❌ Endpoint ${endpointIndex + 1}, attempt ${attempt}/${retries} failed:`, error.message);
+          
+          // Check if it's a blocking error
+          if (error.message.includes('ERR_BLOCKED_BY_CLIENT') || 
+              error.message.includes('Failed to fetch') ||
+              error.message.includes('ERR_NETWORK') ||
+              error.name === 'AbortError') {
+            console.warn('⚠️ Request blocked by client (ad blocker?) or timed out, will retry...');
+          }
+          
+          // If it's the last attempt for this endpoint, try the next endpoint
+          if (attempt === retries) {
+            if (endpointIndex < endpoints.length - 1) {
+              console.log(`🔄 Switching to fallback endpoint ${endpointIndex + 2}/${endpoints.length}`);
+              break; // Try next endpoint
+            } else {
+              console.error('API request failed after all endpoints and retries:', error);
+              throw error;
+            }
+          }
+          
+          // Wait before retrying (exponential backoff)
+          await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 100));
         }
-        
-        // If it's the last attempt, throw the error
-        if (attempt === retries) {
-          console.error('API request failed after all retries:', error);
-          throw error;
-        }
-        
-        // Wait before retrying (exponential backoff)
-        await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 100));
       }
+    }
+  }
+
+  // Sync pending updates when API becomes available
+  async syncPendingUpdates() {
+    if (this.pendingUpdates.size === 0) {
+      console.log('📦 No pending updates to sync');
+      return;
+    }
+
+    console.log(`🔄 Syncing ${this.pendingUpdates.size} pending updates...`);
+    
+    const updates = Array.from(this.pendingUpdates.values());
+    this.pendingUpdates.clear();
+    
+    for (const update of updates) {
+      try {
+        await this.updateUserXP(update.address, update.xp);
+        console.log(`✅ Synced XP update for ${update.address}`);
+      } catch (error) {
+        console.error(`❌ Failed to sync XP update for ${update.address}:`, error);
+        // Re-queue failed updates
+        this.pendingUpdates.set(`xp_${update.address}`, update);
+      }
+    }
+    
+    console.log(`🔄 Sync completed. ${this.pendingUpdates.size} updates remaining.`);
+  }
+
+  // Test API connection
+  async testConnection() {
+    try {
+      console.log('🧪 Testing API connection...');
+      const result = await this.request('/health');
+      console.log('✅ API connection successful:', result);
+      
+      // If we were in offline mode, try to sync pending updates
+      if (this.offlineMode) {
+        this.disableOfflineMode();
+        await this.syncPendingUpdates();
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('❌ API connection failed:', error);
+      
+      // Enable offline mode if API is blocked
+      if (error.message.includes('ERR_BLOCKED_BY_CLIENT') || 
+          error.message.includes('Failed to fetch')) {
+        this.enableOfflineMode();
+      }
+      
+      return false;
     }
   }
 
@@ -74,6 +201,13 @@ class APIService {
       }
     }
     
+    // If in offline mode, use local storage
+    if (this.offlineMode) {
+      const localXP = this.getLocalData(`xp_${address}`, 0);
+      console.log('📦 XP loaded from local storage (offline mode)');
+      return localXP;
+    }
+    
     try {
       const result = await this.request(`/xp/${address}`);
       const xp = result.xp || 0;
@@ -84,11 +218,24 @@ class APIService {
         timestamp: now
       });
       
+      // Also save to local storage as backup
+      this.setLocalData(`xp_${address}`, xp);
+      
       console.log('✅ XP loaded from Supabase and cached');
       return xp;
     } catch (error) {
       console.error('Failed to get XP from Supabase:', error);
-      return 0; // Return 0 if API fails
+      
+      // Enable offline mode if API is blocked
+      if (error.message.includes('ERR_BLOCKED_BY_CLIENT') || 
+          error.message.includes('Failed to fetch')) {
+        this.enableOfflineMode();
+      }
+      
+      // Try to get from local storage as fallback
+      const localXP = this.getLocalData(`xp_${address}`, 0);
+      console.log('📦 XP loaded from local storage (fallback)');
+      return localXP;
     }
   }
 
@@ -99,28 +246,51 @@ class APIService {
     
     // Rate limiting: max 1 update per second per address
     if (now - lastUpdate < 1000) {
-      console.log('⏱️ Rate limiting XP update, queuing...');
-      this.updateQueue.set(address, xp);
-      return { success: true, queued: true };
+      console.log('⏱️ Rate limiting XP update');
+      return;
+    }
+    
+    // If in offline mode, save locally and queue for later
+    if (this.offlineMode) {
+      this.setLocalData(`xp_${address}`, xp);
+      this.pendingUpdates.set(`xp_${address}`, { address, xp, timestamp: now });
+      console.log('💾 XP saved locally (offline mode)');
+      return;
     }
     
     try {
       const result = await this.request(`/xp/${address}`, {
-        method: 'POST',
+        method: 'PUT',
         body: JSON.stringify({ xp })
       });
       
-      // Update cache and timestamp
+      this.lastUpdate[address] = now;
+      
+      // Update cache
       this.cache.set(`xp_${address}`, {
         data: xp,
         timestamp: now
       });
-      this.lastUpdate[address] = now;
       
-      console.log('✅ XP updated in Supabase and cache');
+      // Also save to local storage as backup
+      this.setLocalData(`xp_${address}`, xp);
+      
+      console.log('✅ XP updated in Supabase');
       return result;
     } catch (error) {
       console.error('Failed to update XP in Supabase:', error);
+      
+      // Enable offline mode if API is blocked
+      if (error.message.includes('ERR_BLOCKED_BY_CLIENT') || 
+          error.message.includes('Failed to fetch')) {
+        this.enableOfflineMode();
+      }
+      
+      // Save locally as fallback
+      this.setLocalData(`xp_${address}`, xp);
+      this.pendingUpdates.set(`xp_${address}`, { address, xp, timestamp: now });
+      console.log('💾 XP saved locally (fallback)');
+      
       throw error;
     }
   }

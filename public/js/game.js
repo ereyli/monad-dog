@@ -47,6 +47,9 @@ class GameManager {
     // Detect environment
     this.detectEnvironment();
     
+    // Test API connection first
+    await this.testAPIConnection();
+    
     // Load appropriate wallet system
     await this.initializeWalletSystem();
     
@@ -57,6 +60,25 @@ class GameManager {
     this.setupGameFunctions();
     
     console.log('🎮 Game initialized successfully');
+  }
+
+  // Test API connection
+  async testAPIConnection() {
+    try {
+      console.log('🧪 Testing API connection before game initialization...');
+      const apiService = new APIService();
+      const isConnected = await apiService.testConnection();
+      
+      if (isConnected) {
+        console.log('✅ API connection successful - game can proceed');
+      } else {
+        console.warn('⚠️ API connection failed - some features may not work');
+        this.showError('API connection failed. Some features may not work properly.');
+      }
+    } catch (error) {
+      console.error('❌ API connection test failed:', error);
+      this.showError('Unable to connect to game server. Please check your internet connection.');
+    }
   }
 
   // Detect if we're in Farcaster Frame or regular web

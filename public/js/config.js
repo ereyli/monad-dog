@@ -1,7 +1,9 @@
 // Configuration file - All constants and settings
 const CONFIG = {
-  // API Configuration
-  API_BASE_URL: 'http://localhost:3000/api',
+  // API Configuration - Updated to be ad-blocker friendly
+  API_BASE_URL: window.location.hostname === 'localhost' 
+    ? 'http://localhost:3000/api' 
+    : 'https://monad-snowy.vercel.app/api',
   
   // Contract addresses
   CONTRACTS: {

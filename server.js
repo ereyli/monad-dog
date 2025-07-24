@@ -51,22 +51,32 @@ app.use(helmet({
 
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
-    ? ['https://monad-snowy.vercel.app', 'https://your-production-domain.vercel.app']
+    ? ['https://monad-snowy.vercel.app', 'https://your-production-domain.vercel.app', 'http://localhost:3000']
     : ['http://localhost:8000', 'http://localhost:3000', 'http://localhost:3001', 'https://monad-snowy.vercel.app'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Cache-Control', 'Pragma', 'Expires', 'User-Agent'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Cache-Control', 'Pragma', 'Expires', 'User-Agent', 'Accept', 'Accept-Language'],
   preflightContinue: false,
   optionsSuccessStatus: 204
 }));
 
-// Add security headers
+// Add security headers with more permissive settings for development
 app.use((req, res, next) => {
   res.header('X-Content-Type-Options', 'nosniff');
   res.header('X-Frame-Options', 'DENY');
   res.header('X-XSS-Protection', '1; mode=block');
   res.header('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.header('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+  
+  // Add CORS headers for preflight requests
+  if (req.method === 'OPTIONS') {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Cache-Control, Pragma, Expires, User-Agent, Accept, Accept-Language');
+    res.status(200).end();
+    return;
+  }
+  
   next();
 });
 app.use(express.json());
@@ -134,7 +144,23 @@ const validateWalletAddress = (req, res, next) => {
 
 // API Routes
 
-// Get user XP
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development',
+    supabase: !!supabase ? 'connected' : 'disconnected'
+  });
+});
+
+// Add request logging for debugging
+app.use('/api', (req, res, next) => {
+  console.log(`📡 API Request: ${req.method} ${req.path} from ${req.ip}`);
+  next();
+});
+
+// XP endpoints with better error handling
 app.get('/api/xp/:address', validateWalletAddress, async (req, res) => {
   try {
     const { address } = req.params;
@@ -487,15 +513,6 @@ app.get('/api/leaderboard', async (req, res) => {
     console.error('Error fetching leaderboard:', error);
     res.status(500).json({ error: 'Failed to fetch leaderboard' });
   }
-});
-
-// Health check
-app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'healthy', 
-    timestamp: new Date().toISOString(),
-    version: '1.0.0'
-  });
 });
 
 // Clean test data (for development only)
