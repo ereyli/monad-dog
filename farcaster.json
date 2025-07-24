@@ -1,10 +1,10 @@
 {
   "name": "Monad Dog",
   "description": "Interactive Farcaster Mini App on Monad Testnet. Pet the dog, say GM/GN, flip coins and earn XP!",
-  "icon": "https://monad-snowy.vercel.app/.well-known/icon.png",
-  "splashImageUrl": "https://monad-snowy.vercel.app/.well-known/icon.png",
+  "icon": "https://monad-dog.vercel.app/.well-known/icon.png",
+  "splashImageUrl": "https://monad-dog.vercel.app/.well-known/icon.png",
   "splashBackgroundColor": "#1e003e",
-  "url": "https://monad-snowy.vercel.app",
+  "url": "https://monad-dog.vercel.app",
   "version": "1.0.0",
   "permissions": [
     "camera",
