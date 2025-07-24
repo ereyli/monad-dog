@@ -13,6 +13,12 @@ const initializeSupabase = async () => {
     console.log('🔧 Initializing Supabase connection...');
     console.log('🔑 URL:', supabaseUrl);
     console.log('🔑 Key:', supabaseKey ? `${supabaseKey.substring(0, 20)}...` : 'Missing');
+    console.log('🔑 Full Key:', supabaseKey);
+    console.log('🔑 Environment Variables:', {
+      SUPABASE_URL: process.env.SUPABASE_URL,
+      SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY ? `${process.env.SUPABASE_ANON_KEY.substring(0, 20)}...` : 'Missing',
+      NODE_ENV: process.env.NODE_ENV
+    });
     
     if (!supabaseKey || supabaseKey === 'your-supabase-anon-key-here') {
       console.log('⚠️ Supabase key not configured');
