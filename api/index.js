@@ -239,6 +239,28 @@ module.exports = async (req, res) => {
       return;
     }
 
+    if (path.startsWith('/challenges/') && req.method === 'POST') {
+      const address = path.split('/')[2];
+      const { progress, daily_stats, last_reset_date } = req.body;
+      
+      if (!address || !/^0x[a-fA-F0-9]{40}$/.test(address)) {
+        res.status(400).json({ error: 'Invalid wallet address' });
+        return;
+      }
+
+      // For now, just return success since we don't have a challenges table yet
+      // TODO: Implement challenges table in Supabase
+      console.log(`📝 Challenge progress update for ${address}:`, { progress, daily_stats, last_reset_date });
+      
+      res.json({ 
+        success: true, 
+        progress: progress || {},
+        daily_stats: daily_stats || {},
+        last_reset_date: last_reset_date || new Date().toDateString()
+      });
+      return;
+    }
+
     // Default response
     res.status(404).json({ error: 'Endpoint not found' });
 
