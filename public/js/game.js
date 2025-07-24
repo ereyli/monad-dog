@@ -605,8 +605,7 @@ class GameManager {
     
     // Save to Supabase with localStorage fallback
     try {
-      await apiService.setChallengeProgress(this.appState.address, this.appState.challengeProgress);
-      await apiService.setDailyStats(this.appState.address, this.appState.dailyStats);
+      await apiService.setDailyStats(this.appState.address, this.appState.dailyStats, this.appState.challengeProgress);
       console.log('✅ Challenge progress saved successfully');
     } catch (error) {
       console.error('❌ Failed to save challenge progress:', error);
@@ -2441,7 +2440,6 @@ class GameManager {
         flips: 0,
         slots: 0
       };
-      await apiService.setDailyStats(this.appState.address, this.appState.dailyStats);
       
       // Reset challenge progress
       this.appState.challengeProgress = {
@@ -2451,7 +2449,9 @@ class GameManager {
         slots: 0,
         collection: 0
       };
-      await apiService.setChallengeProgress(this.appState.address, this.appState.challengeProgress);
+      
+      // Save both together to avoid circular calls
+      await apiService.setDailyStats(this.appState.address, this.appState.dailyStats, this.appState.challengeProgress);
       
       // Clear completed challenges
       CONFIG.DAILY_CHALLENGES.forEach(challenge => {

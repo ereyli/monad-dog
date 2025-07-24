@@ -445,7 +445,7 @@ class APIService {
     }
     
     try {
-      const result = await this.request(`/challenges/${address}`);
+      const result = await this.request(`/challenges/${address}`, { method: 'GET' });
       const progress = result.progress || {};
       
       // Cache the result
@@ -454,18 +454,20 @@ class APIService {
         timestamp: now
       });
       
-      console.log('✅ Challenge progress loaded from Supabase and cached');
+      console.log('✅ Challenge progress loaded from API and cached');
       return progress;
     } catch (error) {
-      console.error('Failed to get challenges from Supabase:', error);
+      console.error('Failed to get challenges from API:', error);
       return {}; // Return empty object if API fails
     }
   }
 
-  async setChallengeProgress(address, progress) {
+  async setChallengeProgress(address, progress, dailyStats = null) {
     try {
-      // Get current daily stats
-      const dailyStats = await this.getDailyStats(address);
+      // Get current daily stats if not provided
+      if (!dailyStats) {
+        dailyStats = await this.getDailyStats(address);
+      }
       
       await this.request(`/challenges/${address}`, {
         method: 'POST',
@@ -505,7 +507,7 @@ class APIService {
     }
     
     try {
-      const result = await this.request(`/challenges/${address}`);
+      const result = await this.request(`/challenges/${address}`, { method: 'GET' });
       const dailyStats = result.daily_stats || {};
       
       // Cache the result
@@ -522,10 +524,12 @@ class APIService {
     }
   }
 
-  async setDailyStats(address, stats) {
+  async setDailyStats(address, stats, progress = null) {
     try {
-      // Get current challenge progress
-      const progress = await this.getChallengeProgress(address);
+      // Get current challenge progress if not provided
+      if (!progress) {
+        progress = await this.getChallengeProgress(address);
+      }
       
       await this.request(`/challenges/${address}`, {
         method: 'POST',
