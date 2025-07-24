@@ -464,11 +464,14 @@ class APIService {
 
   async setChallengeProgress(address, progress) {
     try {
+      // Get current daily stats
+      const dailyStats = await this.getDailyStats(address);
+      
       await this.request(`/challenges/${address}`, {
         method: 'POST',
         body: JSON.stringify({ 
           progress: progress,
-          daily_stats: this.getDailyStats(address) || {},
+          daily_stats: dailyStats || {},
           last_reset_date: new Date().toDateString()
         })
       });
@@ -521,10 +524,13 @@ class APIService {
 
   async setDailyStats(address, stats) {
     try {
+      // Get current challenge progress
+      const progress = await this.getChallengeProgress(address);
+      
       await this.request(`/challenges/${address}`, {
         method: 'POST',
         body: JSON.stringify({ 
-          progress: this.getChallengeProgress(address) || {},
+          progress: progress || {},
           daily_stats: stats,
           last_reset_date: new Date().toDateString()
         })
