@@ -2350,8 +2350,8 @@ class GameManager {
     console.log('🔄 Loading user data for:', this.appState.address);
     
     try {
-      // Check for daily reset
-      await this.checkDailyReset();
+      // Check for daily reset (temporarily disabled)
+      // await this.checkDailyReset();
       
       // Load XP ONLY from Supabase
       try {
