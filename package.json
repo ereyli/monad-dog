@@ -10,7 +10,9 @@
     "vercel-build": "echo 'Vercel build completed'"
   },
   "dependencies": {
-    "ethers": "^5.7.2"
-  },
-  "devDependencies": {}
-} 
+    "@farcaster/miniapp-wagmi-connector": "^1.0.0",
+    "ethers": "^5.7.2",
+    "viem": "^2.33.0",
+    "wagmi": "^2.16.0"
+  }
+}

@@ -125,29 +125,103 @@ class GameManager {
 
   // Initialize appropriate wallet system
   async initializeWalletSystem() {
-    if (this.environment === 'farcaster') {
-      await this.initializeFarcasterWallet();
-    } else {
-      await this.initializeWebWallet();
+    console.log('🟣 Initializing Wagmi-based wallet system...');
+    
+    try {
+      // Check if Wagmi config is available
+      if (window.wagmiConfig) {
+        console.log('✅ Wagmi config found');
+        this.wagmiConfig = window.wagmiConfig;
+        
+        // Check if we're in a Farcaster environment
+        if (window.farcasterSDK && typeof window.farcasterSDK.isInFrame === 'function' && window.farcasterSDK.isInFrame()) {
+          console.log('✅ Running in Farcaster Frame environment');
+          this.farcasterClient = true;
+          this.environment = 'farcaster';
+          
+          // Try to get user info
+          try {
+            if (window.farcasterSDK.actions && typeof window.farcasterSDK.actions.getUser === 'function') {
+              const user = await window.farcasterSDK.actions.getUser();
+              if (user) {
+                console.log('✅ Farcaster user detected:', user);
+                this.farcasterUser = user;
+              }
+            }
+          } catch (e) {
+            console.log('⚠️ Could not get Farcaster user info');
+          }
+        } else {
+          console.log('🌐 Running in web browser environment');
+          this.farcasterClient = false;
+          this.environment = 'web';
+        }
+        
+        // Initialize Wagmi hooks
+        await this.initializeWagmiHooks();
+        
+      } else {
+        console.log('⚠️ Wagmi config not available, falling back to legacy system');
+        if (this.environment === 'farcaster') {
+          await this.initializeFarcasterWallet();
+        } else {
+          await this.initializeWebWallet();
+        }
+      }
+      
+    } catch (error) {
+      console.log('⚠️ Wagmi wallet initialization failed:', error);
+      // Fallback to legacy system
+      if (this.environment === 'farcaster') {
+        await this.initializeFarcasterWallet();
+      } else {
+        await this.initializeWebWallet();
+      }
     }
   }
 
-  // Initialize Farcaster Wallet system
-  async initializeFarcasterWallet() {
-    console.log('🟣 Initializing Farcaster Wallet system...');
+  // Initialize Wagmi hooks
+  async initializeWagmiHooks() {
+    console.log('🔄 Initializing Wagmi hooks...');
     
     try {
-      // Use the SDK from window.farcasterSDK
+      // Import Wagmi hooks dynamically
+      const { useAccount, useConnect, useDisconnect, useNetwork, useSwitchNetwork } = await import('https://esm.sh/wagmi');
+      
+      // Create reactive state for wallet
+      this.wagmiState = {
+        isConnected: false,
+        address: null,
+        chainId: null,
+        connector: null
+      };
+      
+      // Set up account watcher
+      this.watchAccount = () => {
+        // This will be implemented with actual Wagmi hooks
+        console.log('👀 Watching account changes...');
+      };
+      
+      console.log('✅ Wagmi hooks initialized');
+      
+    } catch (error) {
+      console.error('❌ Failed to initialize Wagmi hooks:', error);
+    }
+  }
+
+  // Legacy Farcaster Wallet system (fallback)
+  async initializeFarcasterWallet() {
+    console.log('🟣 Initializing legacy Farcaster Wallet system...');
+    
+    try {
       if (window.farcasterSDK) {
         this.sdk = window.farcasterSDK;
         console.log('✅ Farcaster SDK found');
         
-        // Check if we're in a Farcaster client
         if (this.sdk && typeof this.sdk.isInFrame === 'function' && this.sdk.isInFrame()) {
           console.log('✅ Running in Farcaster Frame environment');
           this.farcasterClient = true;
           
-          // Try to get user info
           try {
             if (this.sdk.actions && typeof this.sdk.actions.getUser === 'function') {
               const user = await this.sdk.actions.getUser();
@@ -174,11 +248,10 @@ class GameManager {
     }
   }
 
-  // Initialize Web Wallet system
+  // Legacy Web Wallet system (fallback)
   async initializeWebWallet() {
-    console.log('🌐 Initializing Web Wallet system...');
+    console.log('🌐 Initializing legacy Web Wallet system...');
     
-    // Check for common web3 wallets
     this.availableWallets = {
       metamask: typeof window.ethereum !== 'undefined',
       walletconnect: typeof window.WalletConnect !== 'undefined',
@@ -1460,6 +1533,117 @@ class GameManager {
       console.log(`🔗 Executing ${methodName} transaction...`);
       this.showStatus(statusId, 'Preparing transaction...', 'pending');
       
+      // Try Wagmi-based transaction first
+      if (this.wagmiConfig && this.appState.walletType === 'Farcaster') {
+        console.log('🟣 Using Wagmi-based Farcaster transaction...');
+        
+        try {
+          // Import Wagmi hooks
+          const { useWriteContract, useWaitForTransactionReceipt } = await import('https://esm.sh/wagmi');
+          
+          // Get the Farcaster Mini App connector
+          const connector = this.wagmiConfig.connectors[0];
+          
+          if (connector) {
+            // Use Wagmi's writeContract for Farcaster
+            const { writeContract, isPending, error } = useWriteContract();
+            
+            if (error) {
+              throw error;
+            }
+            
+            // Prepare transaction data
+            let transactionData;
+            if (methodName === 'pet') {
+              transactionData = {
+                address: contractAddress,
+                abi: abi,
+                functionName: 'pet'
+              };
+            } else if (methodName === 'gm') {
+              transactionData = {
+                address: contractAddress,
+                abi: abi,
+                functionName: 'gm'
+              };
+            } else if (methodName === 'gn') {
+              transactionData = {
+                address: contractAddress,
+                abi: abi,
+                functionName: 'gn'
+              };
+            } else if (methodName === 'flip') {
+              transactionData = {
+                address: contractAddress,
+                abi: abi,
+                functionName: 'flip'
+              };
+            } else if (methodName === 'playSlots') {
+              // First buy credits, then play slots
+              const buyCreditsData = {
+                address: contractAddress,
+                abi: abi,
+                functionName: 'buyCredits',
+                value: ethers.utils.parseEther('0.1')
+              };
+              
+              // Buy credits first
+              const buyCreditsHash = await writeContract(buyCreditsData);
+              this.showStatus(statusId, 'Buying credits...', 'pending');
+              
+              // Wait for buy credits transaction
+              const { data: buyCreditsReceipt } = useWaitForTransactionReceipt({
+                hash: buyCreditsHash
+              });
+              
+              if (buyCreditsReceipt) {
+                // Now play slots
+                transactionData = {
+                  address: contractAddress,
+                  abi: abi,
+                  functionName: 'playSlots'
+                };
+              }
+            } else if (methodName === 'claim') {
+              const claimableXP = this.appState.xp || 0;
+              const roundedXP = Math.floor(claimableXP / 10) * 10;
+              transactionData = {
+                address: contractAddress,
+                abi: abi,
+                functionName: 'claim',
+                args: [roundedXP]
+              };
+            }
+            
+            if (transactionData) {
+              // Execute transaction
+              const hash = await writeContract(transactionData);
+              console.log(`📝 Wagmi transaction sent: ${hash}`);
+              
+              this.showStatus(statusId, `Transaction sent! Hash: ${hash.slice(0,10)}...`, 'pending');
+              
+              // Wait for transaction confirmation
+              const { data: receipt } = useWaitForTransactionReceipt({
+                hash: hash
+              });
+              
+              if (receipt) {
+                console.log(`✅ Wagmi transaction confirmed in block ${receipt.blockNumber}`);
+                this.showStatus(statusId, successMsg, 'success');
+                await this.addXP(xpAmount);
+                setTimeout(() => this.hideStatus(statusId), 3000);
+                return true;
+              }
+            }
+          }
+        } catch (wagmiError) {
+          console.log('⚠️ Wagmi transaction failed, falling back to legacy:', wagmiError);
+        }
+      }
+      
+      // Fallback to legacy transaction method
+      console.log('🔄 Using legacy transaction method...');
+      
       // For Farcaster Wallet, use simulation only - check early
       if (this.farcasterClient || this.appState.walletType === 'farcaster') {
         console.log('🟣 Using Farcaster Wallet simulation method');
@@ -2112,15 +2296,66 @@ class GameManager {
       connectBtn.textContent = '🔄 Connecting...';
       connectBtn.disabled = true;
       
+      // Try Wagmi-based connection first
+      if (this.wagmiConfig) {
+        console.log('🔄 Using Wagmi-based connection...');
+        
+        try {
+          // Import Wagmi hooks
+          const { useAccount, useConnect, useDisconnect, useNetwork, useSwitchNetwork } = await import('https://esm.sh/wagmi');
+          
+          // Get the Farcaster Mini App connector
+          const connector = this.wagmiConfig.connectors[0]; // Farcaster Mini App connector
+          
+          if (connector) {
+            console.log('✅ Farcaster Mini App connector found');
+            
+            // Connect using the connector
+            await connector.connect();
+            
+            // Get account info
+            const account = await connector.getAccount();
+            const chainId = await connector.getChainId();
+            
+            if (account) {
+              console.log(`✅ Connected to Farcaster wallet:`, account.address);
+              
+              // Setup ethers with the connector's provider
+              const provider = await connector.getProvider();
+              this.appState.provider = new ethers.providers.Web3Provider(provider);
+              this.appState.signer = this.appState.provider.getSigner();
+              this.appState.address = account.address;
+              this.appState.connected = true;
+              this.appState.walletType = 'Farcaster';
+              this.appState.chainId = chainId;
+              
+              // Update UI
+              this.updateWalletUI();
+              
+              // Check and switch to correct network
+              await this.ensureCorrectNetwork();
+              
+              // Load data
+              await this.loadUserData();
+              
+              return;
+            }
+          }
+        } catch (wagmiError) {
+          console.log('⚠️ Wagmi connection failed, falling back to legacy:', wagmiError);
+        }
+      }
+      
+      // Fallback to legacy connection
+      console.log('🔄 Using legacy connection method...');
+      
       let provider;
       let walletType = '';
       
       if (this.environment === 'farcaster') {
-        // Farcaster Wallet connection
         provider = await this.connectFarcasterWallet();
         walletType = 'Farcaster';
       } else {
-        // Web Wallet connection
         provider = await this.connectWebWallet();
         walletType = 'Web3';
       }
@@ -2155,8 +2390,6 @@ class GameManager {
       
       // Load data
       await this.loadUserData();
-      
-      // Wallet connected successfully - no notification needed
 
     } catch (error) {
       console.error('Connection error:', error);

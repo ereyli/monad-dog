@@ -39,15 +39,53 @@
   <!-- External Libraries -->
   <script src="/js/ethers.min.js"></script>
   
-  <!-- Farcaster Mini App SDK -->
+  <!-- Wagmi and Farcaster Mini App SDK -->
   <script type="module">
     import { sdk } from 'https://esm.sh/@farcaster/miniapp-sdk'
+    import { http, createConfig } from 'https://esm.sh/wagmi'
+    import { base } from 'https://esm.sh/wagmi/chains'
+    import { farcasterMiniApp as miniAppConnector } from 'https://esm.sh/@farcaster/miniapp-wagmi-connector'
+    
     window.farcasterSDK = sdk;
+    
+    // Monad network configuration
+    const monadNetwork = {
+      id: 1337,
+      name: 'Monad',
+      network: 'monad',
+      nativeCurrency: {
+        decimals: 18,
+        name: 'Monad',
+        symbol: 'MONAD',
+      },
+      rpcUrls: {
+        public: { http: ['https://rpc.monad.xyz'] },
+        default: { http: ['https://rpc.monad.xyz'] },
+      },
+      blockExplorers: {
+        etherscan: { name: 'Monad Explorer', url: 'https://explorer.monad.xyz' },
+        default: { name: 'Monad Explorer', url: 'https://explorer.monad.xyz' },
+      },
+    }
+
+    // Create Wagmi config
+    const wagmiConfig = createConfig({
+      chains: [monadNetwork, base],
+      transports: {
+        [monadNetwork.id]: http(),
+        [base.id]: http(),
+      },
+      connectors: [
+        miniAppConnector()
+      ]
+    })
+    
+    window.wagmiConfig = wagmiConfig;
     
     // Initialize Farcaster SDK
     document.addEventListener('DOMContentLoaded', async () => {
       try {
-        console.log('🟣 Initializing Farcaster Mini App SDK...');
+        console.log('🟣 Initializing Farcaster Mini App SDK with Wagmi...');
         
         // Check if we're in a Farcaster environment
         if (sdk && typeof sdk.isInFrame === 'function' && sdk.isInFrame()) {
