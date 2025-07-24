@@ -38,17 +38,18 @@ npm install
 
 3. **Set up environment variables**
 ```bash
-cp .env.example .env
+cp env.template .env
 ```
 
-Edit `.env` file:
+Edit `.env` file with your actual values:
 ```env
-SUPABASE_URL=your_supabase_url
-SUPABASE_SERVICE_KEY=your_service_key
+SUPABASE_URL=https://your-project-id.supabase.co
+SUPABASE_ANON_KEY=your-supabase-anon-key-here
 NODE_ENV=development
-RATE_LIMIT_WINDOW=900000
-RATE_LIMIT_MAX_REQUESTS=100
+PORT=3000
 ```
+
+⚠️ **IMPORTANT**: Never commit `.env` files to version control!
 
 4. **Start the development server**
 ```bash
