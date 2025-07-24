@@ -172,30 +172,53 @@ class GameManager {
 
   // Legacy Farcaster Wallet system (fallback)
   async initializeFarcasterWallet() {
-    console.log('🟣 Initializing legacy Farcaster Wallet system...');
+    console.log('🟣 Initializing Farcaster Wallet system...');
     
     try {
+      // Debug: Check window.farcasterSDK
+      console.log('🔍 window.farcasterSDK available:', !!window.farcasterSDK);
+      console.log('🔍 window.farcasterSDK object:', window.farcasterSDK);
+      
       if (window.farcasterSDK) {
         this.sdk = window.farcasterSDK;
         console.log('✅ Farcaster SDK found');
+        console.log('🔍 SDK methods:', Object.keys(this.sdk));
         
-        if (this.sdk && typeof this.sdk.isInFrame === 'function' && this.sdk.isInFrame()) {
-          console.log('✅ Running in Farcaster Frame environment');
-          this.farcasterClient = true;
+        // Check if we're in Farcaster Frame
+        if (this.sdk && typeof this.sdk.isInFrame === 'function') {
+          const isInFrame = this.sdk.isInFrame();
+          console.log('🔍 isInFrame result:', isInFrame);
           
-          try {
-            if (this.sdk.actions && typeof this.sdk.actions.getUser === 'function') {
-              const user = await this.sdk.actions.getUser();
-              if (user) {
-                console.log('✅ Farcaster user detected:', user);
-                this.farcasterUser = user;
+          if (isInFrame) {
+            console.log('✅ Running in Farcaster Frame environment');
+            this.farcasterClient = true;
+            
+            // Try to get user info
+            try {
+              if (this.sdk.actions && typeof this.sdk.actions.getUser === 'function') {
+                console.log('🔄 Calling sdk.actions.getUser()...');
+                const user = await this.sdk.actions.getUser();
+                if (user) {
+                  console.log('✅ Farcaster user detected:', user);
+                  this.farcasterUser = user;
+                }
               }
+            } catch (e) {
+              console.log('⚠️ Could not get Farcaster user info:', e);
             }
-          } catch (e) {
-            console.log('⚠️ Could not get Farcaster user info');
+            
+            // Check wallet availability
+            console.log('🔍 SDK wallet object:', this.sdk.wallet);
+            if (this.sdk.wallet) {
+              console.log('🔍 Wallet methods:', Object.keys(this.sdk.wallet));
+            }
+            
+          } else {
+            console.log('⚠️ Not in Farcaster Frame environment');
+            this.farcasterClient = false;
           }
         } else {
-          console.log('⚠️ Not in Farcaster Frame environment');
+          console.log('⚠️ sdk.isInFrame function not available');
           this.farcasterClient = false;
         }
       } else {
@@ -2206,22 +2229,58 @@ class GameManager {
     console.log('🟣 Attempting Farcaster wallet connection...');
     
     try {
+      // Debug: Check what's available
+      console.log('🔍 SDK available:', !!this.sdk);
+      console.log('🔍 SDK object:', this.sdk);
+      
+      if (this.sdk) {
+        console.log('🔍 SDK wallet:', this.sdk.wallet);
+        console.log('🔍 SDK actions:', this.sdk.actions);
+        console.log('🔍 SDK methods:', Object.keys(this.sdk));
+      }
+      
       // First try Farcaster SDK wallet
       if (this.sdk && this.sdk.wallet && this.sdk.wallet.ethProvider) {
         console.log('✅ Using Farcaster SDK wallet provider');
         return this.sdk.wallet.ethProvider;
       }
       
-      // Try Farcaster client wallet
+      // Try Farcaster client wallet with ready()
       if (this.farcasterClient && this.sdk && this.sdk.actions) {
         try {
+          console.log('🔄 Calling sdk.actions.ready()...');
           await this.sdk.actions.ready();
+          console.log('✅ sdk.actions.ready() completed');
+          
+          // Check wallet after ready()
           if (this.sdk.wallet && this.sdk.wallet.ethProvider) {
-            console.log('✅ Using Farcaster client wallet');
+            console.log('✅ Using Farcaster client wallet after ready()');
             return this.sdk.wallet.ethProvider;
           }
+          
+          // Try alternative wallet access
+          if (this.sdk.wallet && this.sdk.wallet.getEthereumProvider) {
+            console.log('✅ Using getEthereumProvider() method');
+            return await this.sdk.wallet.getEthereumProvider();
+          }
+          
         } catch (e) {
-          console.log('⚠️ Farcaster client wallet not available');
+          console.log('⚠️ Farcaster client wallet not available:', e);
+        }
+      }
+      
+      // Try direct window.farcasterSDK access
+      if (window.farcasterSDK && window.farcasterSDK.wallet) {
+        console.log('🔄 Trying window.farcasterSDK.wallet...');
+        
+        if (window.farcasterSDK.wallet.ethProvider) {
+          console.log('✅ Using window.farcasterSDK.wallet.ethProvider');
+          return window.farcasterSDK.wallet.ethProvider;
+        }
+        
+        if (window.farcasterSDK.wallet.getEthereumProvider) {
+          console.log('✅ Using window.farcasterSDK.wallet.getEthereumProvider()');
+          return await window.farcasterSDK.wallet.getEthereumProvider();
         }
       }
       
