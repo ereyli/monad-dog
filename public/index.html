@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Monad Dog</title>
+
+  <!-- Farcaster Manifest Link -->
+  <link rel="manifest" href="/farcaster.json">
+  <link rel="icon" type="image/png" href="https://monad-snowy.vercel.app/.well-known/icon.png">
+  
+  <!-- Farcaster Meta with Dynamic Content -->
+  <meta name="fc:frame" content='{
+    "version": "next",
+    "imageUrl": "https://monad-snowy.vercel.app/.well-known/share.png",
+    "button": {
+      "title": "🐕 Play Monad Dog",
+      "action": {
+        "type": "launch_frame",
+        "url": "https://monad-snowy.vercel.app",
+        "name": "Monad Dog",
+        "splashImageUrl": "https://monad-snowy.vercel.app/.well-known/icon.png",
+        "splashBackgroundColor": "#1e003e"
+      }
+    }
+  }' />
+
+  <!-- Open Graph for better sharing -->
+  <meta property="og:title" content="Monad Dog - Pet, Greet, Flip on Monad Testnet" />
+  <meta property="og:description" content="Interactive Farcaster Mini App on Monad Testnet. Pet the dog, say GM/GN, flip coins and earn XP!" />
+  <meta property="og:image" content="https://monad-snowy.vercel.app/.well-known/share.png" />
+  <meta property="og:url" content="https://monad-snowy.vercel.app" />
+  <meta property="og:type" content="website" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Monad Dog - Pet, Greet, Flip on Monad Testnet" />
+  <meta name="twitter:description" content="Interactive Farcaster Mini App on Monad Testnet. Pet the dog, say GM/GN, flip coins and earn XP!" />
+  <meta name="twitter:image" content="https://monad-snowy.vercel.app/.well-known/share.png" />
+
+  <!-- External Libraries -->
+  <script src="/js/ethers.min.js"></script>
+  
+  <!-- Farcaster Mini App SDK -->
+  <script>
+    // Farcaster SDK will be loaded dynamically in game.js
+    window.farcasterSDK = null;
+  </script>
+
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+  <div class="container app-content">
+    <div class="header">
+      <div class="title">🐕 Monad Dog</div>
+      
+      <div style="display: flex; justify-content: center; gap: 15px; margin-bottom: 15px;">
+        <div class="xp">✨ Available XP: <span id="xp">0</span></div>
+        <div class="xp">🏆 Level: <span id="level">1</span></div>
+      </div>
+      
+      <!-- X Follow Button - Centered and Minimal -->
+      <div class="x-follow-center" id="x-follow-center">
+        <button class="x-follow-minimal-btn" id="x-follow-header-btn" title="🎯 Daily Task: Follow @monaddogg on X\n💰 Reward: +1000 XP\n⏰ Type: Daily (resets every day)">
+          <span class="x-icon-minimal">𝕏</span>
+          <span class="x-reward-minimal">+1000 XP</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="wallet-section">
+      <div id="connect-area">
+        <button id="connect-btn">🟣 Connect Wallet</button>
+      </div>
+      <div id="connected-area" style="display: none;">
+        <div>🟣 Connected</div>
+        <div id="address" class="address"></div>
+        <button id="disconnect-btn">Disconnect</button>
+      </div>
+    </div>
+
+    <div class="tabs-container">
+      <div class="tabs">
+        <button class="tab active" data-tab="pet">🐕 Pet</button>
+        <button class="tab" data-tab="greet">👋 Greet</button>
+        <button class="tab" data-tab="flip">🪙 Flip</button>
+        <button class="tab" data-tab="slots">🎰 Slots</button>
+        <button class="tab" data-tab="collection">🏆 Collection</button>
+        <button class="tab" data-tab="challenges">🎯 Challenges</button>
+        <button class="tab" data-tab="claim">💰 Claim</button>
+      </div>
+      <div class="scroll-indicator">← →</div>
+    </div>
+
+    <div class="content">
+      <!-- Tab contents will be loaded dynamically -->
+      <div id="tab-content"></div>
+    </div>
+
+    <div id="loading" class="loading">
+      <div class="loading-spinner"></div>
+      <div class="loading-text">Loading Monad Dog...</div>
+      <div class="loading-subtitle">Starting Monad Dog...<br>🚀 Initializing blockchain connection</div>
+      <div class="loading-progress">
+        <div class="loading-progress-bar" id="loadingProgressBar"></div>
+      </div>
+    </div>
+
+    <!-- Achievement Modal -->
+    <div id="achievementModal" class="achievement-modal">
+      <div class="achievement-content">
+        <button class="close-modal" id="closeModalBtn">×</button>
+        <div id="achievementIcon" class="achievement-icon">🎉</div>
+        <h3 id="achievementTitle">Achievement Unlocked!</h3>
+        <p id="achievementDescription">You did something awesome!</p>
+        <div style="margin-top: 20px;">
+          <button class="share-button" id="shareAchievementBtn">
+            📢 Share on Farcaster
+          </button>
+          <button class="share-button" id="continuePlayingBtn" style="background: rgba(255,255,255,0.2);">
+            ✨ Continue Playing
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- X Follow Task Modal -->
+    <div id="xFollowModal" class="x-follow-modal">
+      <div class="x-follow-modal-content">
+        <div class="x-follow-modal-header">
+          <div class="x-follow-modal-icon">🎯</div>
+          <h3 class="x-follow-modal-title">Daily Task</h3>
+        </div>
+        
+        <div class="x-follow-modal-body">
+          <div class="task-item">
+            <span class="task-icon">🎯</span>
+            <span class="task-text">Follow @monaddogg on X</span>
+          </div>
+          <div class="task-item">
+            <span class="task-icon">📋</span>
+            <span class="task-text">Follow our X account to earn 1000 XP</span>
+          </div>
+          <div class="task-item">
+            <span class="task-icon">💰</span>
+            <span class="task-text">Reward: +1000 XP</span>
+          </div>
+          <div class="task-item">
+            <span class="task-icon">⏰</span>
+            <span class="task-text">Type: Daily (resets every day)</span>
+          </div>
+        </div>
+        
+        <div class="x-follow-modal-footer">
+          <button class="x-follow-modal-btn x-follow-modal-btn-cancel" id="xFollowCancelBtn">
+            Cancel
+          </button>
+          <button class="x-follow-modal-btn x-follow-modal-btn-start" id="xFollowStartBtn">
+            OK
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Custom Scripts -->
+  <script src="/js/config.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/game.js"></script>
+  <script src="/js/ui.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+</html> 
