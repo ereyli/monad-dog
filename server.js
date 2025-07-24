@@ -101,7 +101,7 @@ if (process.env.NODE_ENV === 'production') {
 let supabase = null;
 try {
   const supabaseUrl = process.env.SUPABASE_URL || 'https://uhqszfoekqrjtybrwqzt.supabase.co';
-  const supabaseKey = process.env.SUPABASE_ANON_KEY;
+  const supabaseKey = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVocXN6Zm9la3FyanR5YnJ3cXp0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQ5NzI5NzAsImV4cCI6MjA1MDU0ODk3MH0.Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8';
   
   if (supabaseUrl && supabaseKey && supabaseKey !== 'your-supabase-anon-key-here') {
     supabase = createClient(supabaseUrl, supabaseKey);
