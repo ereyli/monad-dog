@@ -13,16 +13,19 @@ class APIService {
       try {
         const url = `${this.baseURL}${endpoint}`;
         
-        // Add cache busting for GET requests
+        // Add cache busting for GET requests with random parameter
+        const cacheBuster = `_cb=${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         const finalUrl = options.method === 'GET' 
-          ? `${url}${url.includes('?') ? '&' : '?'}_t=${Date.now()}`
+          ? `${url}${url.includes('?') ? '&' : '?'}${cacheBuster}`
           : url;
         
         const response = await fetch(finalUrl, {
           headers: {
             'Content-Type': 'application/json',
-            'Cache-Control': 'no-cache',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
             'Pragma': 'no-cache',
+            'Expires': '0',
+            'User-Agent': 'MonadDogApp/1.0',
             ...options.headers
           },
           mode: 'cors',
@@ -37,6 +40,13 @@ class APIService {
         return await response.json();
       } catch (error) {
         console.warn(`API request attempt ${attempt}/${retries} failed:`, error.message);
+        
+        // Check if it's a blocking error
+        if (error.message.includes('ERR_BLOCKED_BY_CLIENT') || 
+            error.message.includes('Failed to fetch') ||
+            error.message.includes('ERR_NETWORK')) {
+          console.warn('⚠️ Request blocked by client (ad blocker?), will retry...');
+        }
         
         // If it's the last attempt, throw the error
         if (attempt === retries) {

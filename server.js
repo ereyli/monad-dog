@@ -55,10 +55,20 @@ app.use(cors({
     : ['http://localhost:8000', 'http://localhost:3000', 'http://localhost:3001', 'https://monad-snowy.vercel.app'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Cache-Control', 'Pragma'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Cache-Control', 'Pragma', 'Expires', 'User-Agent'],
   preflightContinue: false,
   optionsSuccessStatus: 204
 }));
+
+// Add security headers
+app.use((req, res, next) => {
+  res.header('X-Content-Type-Options', 'nosniff');
+  res.header('X-Frame-Options', 'DENY');
+  res.header('X-XSS-Protection', '1; mode=block');
+  res.header('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.header('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+  next();
+});
 app.use(express.json());
 
 // General rate limiting (disabled for development)
@@ -150,7 +160,11 @@ app.get('/api/xp/:address', validateWalletAddress, async (req, res) => {
     }
   } catch (error) {
     console.error('Error fetching XP:', error);
-    res.status(500).json({ error: 'Failed to fetch XP' });
+    // Return fallback response instead of error
+    res.json({
+      xp: 0,
+      updated_at: null
+    });
   }
 });
 
@@ -378,7 +392,12 @@ app.get('/api/challenges/:address', async (req, res) => {
     }
   } catch (error) {
     console.error('Error fetching challenges:', error);
-    res.status(500).json({ error: 'Failed to fetch challenges' });
+    // Return fallback response instead of error
+    res.json({
+      progress: {},
+      daily_stats: {},
+      last_reset_date: null
+    });
   }
 });
 
